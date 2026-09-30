@@ -1,11 +1,72 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../context/AuthContext";
+import { useOrders } from "../../context/OrderContext";
 
 const OrderSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { orderId, paymentId, pickupCode, pickupSlot, total } =
-    location.state || {};
+  const { user } = useAuth();
+  const { orders } = useOrders();
+
+  const [order, setOrder] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const stateOrderId = location.state?.orderId;
+
+  useEffect(() => {
+    if (!user || !stateOrderId) {
+      setLoading(false);
+      return;
+    }
+
+    const foundOrder = orders.find(
+      (item) => item.id === stateOrderId && item.userId === user.uid,
+    );
+
+    if (foundOrder) {
+      setOrder(foundOrder);
+    }
+
+    setLoading(false);
+  }, [orders, stateOrderId, user]);
+
+  // Show loading while finding the order
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f5f2]">
+        <p className="text-sm text-[#8e8179]">Loading order...</p>
+      </div>
+    );
+  }
+
+  // Order not found or does not belong to current user
+  if (!order) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f8f5f2] px-5 text-center">
+        <div className="text-5xl">📦</div>
+
+        <h1 className="mt-4 text-xl font-bold text-[#171717]">
+          Order not found
+        </h1>
+
+        <p className="mt-2 max-w-[350px] text-xs leading-[1.6] text-[#8e8179]">
+          We couldn't find this order in your account.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => navigate("/user/order-history")}
+          className="mt-5 rounded-[11px] bg-[#D15D2C] px-5 py-3 text-[11px] font-semibold text-white transition hover:bg-[#b95122]"
+        >
+          View Order History
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f5f2] px-4 pt-[20px] md:pt-[50px]">
@@ -23,7 +84,7 @@ const OrderSuccess = () => {
         </h1>
 
         <p className="mt-2 text-center text-[12px] text-[#8e8179]">
-          Your payment was successful and your order has been placed.
+          Your order details and pickup information are shown below.
         </p>
 
         {/* Pickup Code Card */}
@@ -33,8 +94,8 @@ const OrderSuccess = () => {
           </p>
 
           <div className="mt-4 rounded-[14px] border-2 border-dashed border-[#D15D2C] bg-[#fff7f3] px-4 py-5">
-            <p className="text-[32px] font-extrabold tracking-[7px] text-[#D15D2C]">
-              {pickupCode || "------"}
+            <p className="break-all text-[32px] font-extrabold tracking-[7px] text-[#D15D2C]">
+              {order.pickupCode || "------"}
             </p>
           </div>
 
@@ -46,6 +107,22 @@ const OrderSuccess = () => {
             <p className="text-[10px] font-medium text-[#D15D2C]">
               Keep this code safe until your order is collected.
             </p>
+          </div>
+        </div>
+
+        {/* Items */}
+        <div className="mt-4 w-full rounded-[16px] border border-[#e4dcd4] bg-white p-5">
+          <h2 className="text-[15px] font-bold text-[#171717]">Items</h2>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {order.items?.map((item, index) => (
+              <span
+                key={`${item.id || item.name}-${index}`}
+                className="rounded-full bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#806b60]"
+              >
+                {item.name} ×{item.quantity}
+              </span>
+            ))}
           </div>
         </div>
 
@@ -61,7 +138,7 @@ const OrderSuccess = () => {
               <span className="text-[11px] text-[#8e8179]">Order ID</span>
 
               <span className="max-w-[65%] break-all text-right text-[11px] font-medium text-[#171717]">
-                {orderId || "N/A"}
+                {order.id || "N/A"}
               </span>
             </div>
 
@@ -70,7 +147,7 @@ const OrderSuccess = () => {
               <span className="text-[11px] text-[#8e8179]">Payment ID</span>
 
               <span className="max-w-[65%] break-all text-right text-[11px] font-medium text-[#171717]">
-                {paymentId || "N/A"}
+                {order.razorpayPaymentId || "N/A"}
               </span>
             </div>
 
@@ -79,7 +156,7 @@ const OrderSuccess = () => {
               <span className="text-[11px] text-[#8e8179]">Pickup Time</span>
 
               <span className="text-[11px] font-semibold text-[#D15D2C]">
-                {pickupSlot || "N/A"}
+                {order.pickupTime || order.pickupSlot || "N/A"}
               </span>
             </div>
 
@@ -88,7 +165,9 @@ const OrderSuccess = () => {
               <span className="text-[11px] text-[#8e8179]">Payment Status</span>
 
               <span className="rounded-full bg-[#e8f7ee] px-2.5 py-1 text-[9px] font-semibold text-[#249653]">
-                Paid
+                {order.paymentStatus === "paid"
+                  ? "Paid"
+                  : order.paymentStatus || "Unknown"}
               </span>
             </div>
 
@@ -99,16 +178,51 @@ const OrderSuccess = () => {
               </span>
 
               <span className="text-[17px] font-bold text-[#D15D2C]">
-                ₹{Number(total || 0).toFixed(2)}
+                ₹{Number(order.total || 0).toFixed(2)}
               </span>
             </div>
           </div>
         </div>
 
+        {/* Order Status */}
+        <div className="mt-4 w-full rounded-[16px] border border-[#e4dcd4] bg-white p-5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-[15px] font-bold text-[#171717]">
+              Order Status
+            </h2>
+
+            <span
+              className={`rounded-full px-3 py-1 text-[9px] font-semibold ${
+                order.status === "Delivered"
+                  ? "bg-[#e8f7ee] text-[#249653]"
+                  : order.status === "Waiting for Pickup"
+                    ? "bg-[#fff3ed] text-[#D15D2C]"
+                    : order.status === "Preparing"
+                      ? "bg-[#f1f7ff] text-[#397be7]"
+                      : "bg-[#fffdf1] text-[#df9b00]"
+              }`}
+            >
+              {order.status || "Pending"}
+            </span>
+          </div>
+
+          {order.status === "Delivered" && (
+            <p className="mt-3 text-[10px] text-[#27a467]">
+              ✓ This order has already been collected.
+            </p>
+          )}
+
+          {order.status !== "Delivered" && (
+            <p className="mt-3 text-[10px] leading-[1.5] text-[#8e8179]">
+              Your pickup code will be required when collecting your order.
+            </p>
+          )}
+        </div>
+
         {/* Important Note */}
         <div className="mt-4 w-full rounded-[12px] border border-[#e4dcd4] bg-white px-4 py-3">
           <p className="text-[10px] leading-[1.6] text-[#8e8179]">
-            <span className="font-semibold text-[#171717]">Pickup:</span> Please
+            <span className="font-semibold text-[#171717]">Pickup:</span> Just
             show your pickup code at the canteen counter when collecting your
             order.
           </p>

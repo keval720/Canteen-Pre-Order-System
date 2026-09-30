@@ -40,6 +40,16 @@ export const updateOrderStatus = async (id, status) => {
   });
 };
 
+// Mark order as collected
+export const markOrderAsCollected = async (id) => {
+  const orderRef = doc(db, "orders", id);
+
+  await updateDoc(orderRef, {
+    status: "Delivered",
+    pickupStatus: "collected",
+  });
+};
+
 // Delete order
 export const deleteOrder = async (id) => {
   const orderRef = doc(db, "orders", id);

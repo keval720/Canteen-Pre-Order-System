@@ -1,12 +1,23 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
 import { useOrders } from "../../context/OrderContext";
+import { useAuth } from "../../context/AuthContext";
 
 const OrderHistory = () => {
   const navigate = useNavigate();
 
   const { orders } = useOrders();
+  const { user } = useAuth();
+
+  const userOrders = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return orders.filter((order) => order.userId === user.uid);
+  }, [orders, user]);
 
   const getStatusStyles = (status) => {
     if (status === "Waiting for Pickup") {
@@ -48,6 +59,14 @@ const OrderHistory = () => {
     navigate("/user/cart");
   };
 
+  const handleOrderClick = (order) => {
+    navigate("/user/order-success", {
+      state: {
+        orderId: order.id,
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#faf7f2]">
       {/* Navbar */}
@@ -62,13 +81,14 @@ const OrderHistory = () => {
 
         {/* Orders */}
         <div className="flex flex-col gap-4">
-          {orders.map((order) => {
+          {userOrders.map((order) => {
             const statusStyles = getStatusStyles(order.status);
 
             return (
               <div
                 key={order.id}
-                className="min-w-0 rounded-[15px] border border-[#e2d8ce] bg-white p-4 shadow-sm"
+                onClick={() => handleOrderClick(order)}
+                className="min-w-0 cursor-pointer rounded-[15px] border border-[#e2d8ce] bg-white p-4 shadow-sm transition hover:shadow-md"
               >
                 {/* Top */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -98,7 +118,7 @@ const OrderHistory = () => {
 
                 {/* Items */}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {order.items.map((item, index) => (
+                  {order.items?.map((item, index) => (
                     <span
                       key={`${order.id}-${index}`}
                       className="max-w-full rounded-full bg-[#f0eae2] px-2.5 py-1 text-[10px] text-[#806b60]"
@@ -118,7 +138,10 @@ const OrderHistory = () => {
                   </span>
 
                   <button
-                    onClick={() => handleReorder(order)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleReorder(order);
+                    }}
                     className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#d55c29] transition hover:bg-[#e8ded3]"
                   >
                     <span className="text-base">↻</span>
@@ -131,7 +154,7 @@ const OrderHistory = () => {
         </div>
 
         {/* Empty State */}
-        {orders.length === 0 && (
+        {userOrders.length === 0 && (
           <div className="py-24 text-center">
             <div className="text-5xl text-[#cf632e]">📦</div>
 

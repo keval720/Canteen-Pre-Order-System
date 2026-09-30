@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-
+import logo from "../../assets/icons/logo.png";
 import { useCart } from "../../context/CartContext";
 
 const Navbar = () => {
@@ -20,11 +20,15 @@ const Navbar = () => {
           onClick={() => navigate("/user/home")}
           className="flex shrink-0 items-center gap-[8px] sm:gap-[9px]"
         >
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-[#cf612e] text-[15px] font-bold text-white">
-            S
-          </span>
+          <img
+            src={logo}
+            alt="Smart Canteen logo"
+            width={30}
+            height={30}
+            className="rounded"
+          />
 
-          <span className="font-serif text-[18px] font-semibold tracking-[-0.2px] text-[#282421] sm:text-[21px]">
+          <span className="hidden min-[400px]:block font-serif text-[18px] font-semibold tracking-[-0.2px] text-[#282421] sm:text-[21px]">
             Smart Canteen
           </span>
         </button>

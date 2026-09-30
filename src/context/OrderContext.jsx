@@ -4,6 +4,7 @@ import {
   getOrders,
   addOrder as addOrderToFirebase,
   updateOrderStatus as updateOrderStatusInFirebase,
+  markOrderAsCollected as markOrderAsCollectedInFirebase,
   deleteOrder as deleteOrderFromFirebase,
 } from "../services/orderService";
 
@@ -66,6 +67,30 @@ export const OrderProvider = ({ children }) => {
       );
     } catch (error) {
       console.error("Update Order Status Error:", error);
+
+      throw error;
+    }
+  };
+
+  // Mark order as collected
+  const markOrderAsCollected = async (id) => {
+    try {
+      await markOrderAsCollectedInFirebase(id);
+
+      setOrders((previousOrders) =>
+        previousOrders.map((order) =>
+          order.id === id
+            ? {
+                ...order,
+                status: "Delivered",
+                pickupStatus: "collected",
+              }
+            : order,
+        ),
+      );
+    } catch (error) {
+      console.error("Mark Order As Collected Error:", error);
+
       throw error;
     }
   };
@@ -80,6 +105,7 @@ export const OrderProvider = ({ children }) => {
       );
     } catch (error) {
       console.error("Delete Order Error:", error);
+
       throw error;
     }
   };
@@ -93,6 +119,7 @@ export const OrderProvider = ({ children }) => {
         loadOrders,
         addOrder,
         updateOrderStatus,
+        markOrderAsCollected,
         deleteOrder,
       }}
     >
