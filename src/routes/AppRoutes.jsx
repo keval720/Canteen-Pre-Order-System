@@ -20,6 +20,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Cart from "../pages/user/Cart";
 import Checkout from "../pages/user/Checkout";
 import Payment from "../pages/user/Payment";
+import OrderSuccess from "../pages/user/OrderSuccess";
 
 const AppRoutes = () => {
   return (
@@ -33,13 +34,14 @@ const AppRoutes = () => {
         {/* User */}
         <Route path="/user/register" element={<UserRegister />} />
         <Route element={<ProtectedRoute />}>
-        <Route path="/user/home" element={<Home />} />
-        <Route path="/user/menu" element={<Menu />} />
-        <Route path="/user/favourites" element={<Favourites />} />
-        <Route path="/user/cart" element={<Cart />} />
-        <Route path="/user/checkout" element={<Checkout />} />
-        <Route path="/user/payment" element={<Payment />} />
-        <Route path="/user/order-history" element={<OrderHistory />} />
+          <Route path="/user/home" element={<Home />} />
+          <Route path="/user/menu" element={<Menu />} />
+          <Route path="/user/favourites" element={<Favourites />} />
+          <Route path="/user/cart" element={<Cart />} />
+          <Route path="/user/checkout" element={<Checkout />} />
+          <Route path="/user/payment" element={<Payment />} />
+          <Route path="/user/order-success" element={<OrderSuccess />} />
+          <Route path="/user/order-history" element={<OrderHistory />} />
         </Route>
         {/* Admin */}
         <Route path="/admin" element={<Dashboard />} />

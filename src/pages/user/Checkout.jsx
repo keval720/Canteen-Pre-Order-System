@@ -217,61 +217,6 @@ const Checkout = () => {
         </div>
 
         {/* ========================================== */}
-        {/* PAYMENT METHOD */}
-        {/* ========================================== */}
-
-        <div className="mt-[16px] rounded-[14px] border border-[#e4dcd4] bg-white p-[16px]">
-          {/* Payment Header */}
-          <div className="flex items-center gap-[10px]">
-            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-[#f3e3d8] text-[17px]">
-              📱
-            </div>
-
-            <div>
-              <h2 className="text-[12px] font-semibold text-[#292421]">
-                Payment Method
-              </h2>
-
-              <p className="mt-[2px] text-[10px] text-[#9a7567]">
-                Secure payment powered by Razorpay
-              </p>
-            </div>
-          </div>
-
-          {/* UPI */}
-          <div className="mt-[14px] flex items-center justify-between rounded-[11px] border border-[#cf632e] bg-[#fff7f1] px-[12px] py-[11px]">
-            <div className="flex items-center gap-[10px]">
-              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-white text-[17px]">
-                📱
-              </div>
-
-              <div>
-                <p className="text-[11px] font-semibold text-[#292421]">UPI</p>
-
-                <p className="mt-[1px] text-[9px] text-[#9a7567]">
-                  Google Pay, PhonePe, Paytm & more
-                </p>
-              </div>
-            </div>
-
-            {/* Selected */}
-            <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-[#cf632e]">
-              <span className="h-[9px] w-[9px] rounded-full bg-[#cf632e]" />
-            </div>
-          </div>
-
-          {/* Secure Payment */}
-          <div className="mt-[12px] flex items-start gap-[8px] rounded-[10px] border border-[#dfe8d9] bg-[#f3faf1] px-[11px] py-[9px]">
-            <span className="text-[12px]">🔒</span>
-
-            <p className="text-[9px] leading-[1.5] text-[#68715f]">
-              Your payment will be securely processed through Razorpay. We never
-              store your payment details.
-            </p>
-          </div>
-        </div>
-
-        {/* ========================================== */}
         {/* PAY BUTTON */}
         {/* ========================================== */}
 

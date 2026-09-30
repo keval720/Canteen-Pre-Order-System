@@ -1,279 +1,532 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import Navbar from "../../components/common/Navbar";
+import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { useOrders } from "../../context/OrderContext";
 
 const Payment = () => {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const { cartItems, itemTotal, gst, convenienceFee, total } = useCart();
+  const { user } = useAuth();
 
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const { cartItems, itemTotal, gst, convenienceFee, total, clearCart } =
+    useCart();
 
-  // ==========================================
-  // PICKUP SLOT
-  // ==========================================
+  const { addOrder } = useOrders();
 
   const pickupSlot = location.state?.pickupSlot || "12:30 PM";
 
-  // ==========================================
-  // PAYMENT METHODS
-  // ==========================================
+  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const paymentMethods = [
-    {
-      id: "upi",
-      icon: "📱",
-      title: "UPI",
-      description: "Google Pay, PhonePe, Paytm & more",
-    },
-    {
-      id: "card",
-      icon: "💳",
-      title: "Credit / Debit Card",
-      description: "Visa, Mastercard & RuPay",
-    },
-    {
-      id: "netbanking",
-      icon: "🏦",
-      title: "Net Banking",
-      description: "Pay using your bank account",
-    },
-  ];
+  const generatePickupCode = () => {
+    const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  // ==========================================
-  // PAYMENT
-  // ==========================================
+    let code = "";
 
-  const handlePayment = () => {
-    // ==========================================
-    // PREPARE ORDER ITEMS
-    // ==========================================
+    for (let index = 0; index < 6; index += 1) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+
+    return code;
+  };
+
+  useEffect(() => {
+    const loadRazorpayScript = () => {
+      if (
+        document.querySelector(
+          'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+        )
+      ) {
+        return;
+      }
+
+      const script = document.createElement("script");
+
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+
+      script.async = true;
+
+      document.body.appendChild(script);
+    };
+
+    loadRazorpayScript();
+  }, []);
+
+  const createFirebaseOrder = async (razorpayResponse) => {
+    if (!user) {
+      throw new Error("User session not found. Please login again.");
+    }
 
     const orderItems = cartItems.map((item) => ({
       id: item.id,
       name: item.name,
       quantity: Number(item.quantity || 0),
       price: Number(item.price || 0),
-
-      // Kitchen preparation information
       preparationTime: Number(item.preparationTime || 0),
       batchable: item.batchable === true,
     }));
 
-    // ==========================================
-    // PREPARE ORDER DATA
-    // ==========================================
+    const pickupCode = generatePickupCode();
 
     const orderData = {
+      userId: user.uid,
+
+      customer: user.displayName || "Customer",
+
+      customerEmail: user.email || "",
+
       items: orderItems,
 
       pickupSlot,
 
-      itemTotal,
-      gst,
-      convenienceFee,
-      total,
+      pickupTime: pickupSlot,
+
+      itemTotal: Number(itemTotal || 0),
+
+      gst: Number(gst || 0),
+
+      convenienceFee: Number(convenienceFee || 0),
+
+      total: Number(total || 0),
 
       paymentMethod,
 
-      // This will later change after successful payment
-      paymentStatus: "pending",
+      paymentStatus: "paid",
 
-      // Initial order status
+      razorpayOrderId: razorpayResponse.razorpay_order_id,
+
+      razorpayPaymentId: razorpayResponse.razorpay_payment_id,
+
+      pickupCode,
+
+      pickupStatus: "pending",
+
       status: "Pending",
+
+      source: "online",
+
+      batchId: null,
+
+      createdAt: new Date(),
     };
 
-    // ==========================================
-    // TEMPORARY TEST
-    // ==========================================
+    const createdOrder = await addOrder(orderData);
 
-    console.log("Prepared Order Data:", orderData);
+    return {
+      ...createdOrder,
+      pickupCode,
+    };
+  };
+
+  const handlePayment = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      if (!user) {
+        throw new Error("Please login before making payment.");
+      }
+
+      if (!cartItems.length) {
+        throw new Error("Your cart is empty.");
+      }
+
+      if (!window.Razorpay) {
+        throw new Error("Payment gateway is still loading. Please try again.");
+      }
+
+      const createOrderResponse = await fetch(
+        "http://localhost:5000/api/payment/create-order",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            amount: total,
+          }),
+        },
+      );
+
+      const createOrderData = await createOrderResponse.json();
+
+      if (!createOrderResponse.ok) {
+        throw new Error(
+          createOrderData.message || "Failed to create payment order.",
+        );
+      }
+
+      const razorpayOrder = createOrderData.order;
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+
+        amount: razorpayOrder.amount,
+
+        currency: razorpayOrder.currency,
+
+        name: "Smart Canteen",
+
+        description: "Canteen Food Order",
+
+        order_id: razorpayOrder.id,
+
+        prefill: {
+          name: user.displayName || "",
+
+          email: user.email || "",
+        },
+
+        notes: {
+          pickupSlot,
+        },
+
+        theme: {
+          color: "#D15D2C",
+        },
+
+        handler: async (response) => {
+          try {
+            setLoading(true);
+            setError("");
+
+            const verifyResponse = await fetch(
+              "http://localhost:5000/api/payment/verify",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type": "application/json",
+                },
+
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+
+                  razorpay_payment_id: response.razorpay_payment_id,
+
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              },
+            );
+
+            const verifyData = await verifyResponse.json();
+
+            if (!verifyResponse.ok) {
+              throw new Error(
+                verifyData.message || "Payment verification failed.",
+              );
+            }
+
+            const createdOrder = await createFirebaseOrder(response);
+
+            await clearCart();
+
+            navigate("/user/order-success", {
+              state: {
+                orderId: createdOrder.id,
+
+                paymentId: response.razorpay_payment_id,
+
+                pickupCode: createdOrder.pickupCode,
+
+                pickupSlot,
+
+                total,
+              },
+            });
+          } catch (error) {
+            console.error("Payment Verification Error:", error);
+
+            setError(
+              error.message ||
+                "Payment was successful, but order processing failed.",
+            );
+
+            setLoading(false);
+          }
+        },
+
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.on("payment.failed", (response) => {
+        console.error("Razorpay Payment Failed:", response.error);
+
+        setError(
+          response.error?.description || "Payment failed. Please try again.",
+        );
+
+        setLoading(false);
+      });
+
+      razorpay.open();
+    } catch (error) {
+      console.error("Payment Error:", error);
+
+      setError(
+        error.message || "Something went wrong while processing payment.",
+      );
+
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#faf7f2]">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-[640px] px-4 pb-10 pt-[88px] sm:px-5">
+    <div className="min-h-screen bg-[#f8f5f2] px-4 pb-10 pt-[90px]">
+      <div className="mx-auto w-full max-w-[900px]">
         {/* Header */}
-        <div className="mb-[22px]">
-          <h1 className="font-serif text-[26px] text-[#1c1917]">Payment</h1>
+        <div className="mb-6">
+          <h1 className="text-[25px] font-bold text-[#171717]">Payment</h1>
 
-          <p className="mt-1 text-[12px] text-[#a17d6d]">
-            Choose your preferred payment method
+          <p className="mt-1 text-[12px] text-[#8e8179]">
+            Complete your payment to place the order.
           </p>
         </div>
 
-        {/* Payment Methods */}
-        <div className="rounded-[14px] border border-[#e4dcd4] bg-white p-[16px]">
-          <h2 className="mb-[14px] text-[13px] font-semibold text-[#292421]">
-            Select Payment Method
-          </h2>
+        {/* Payment Container */}
+        <div className="grid gap-5 md:grid-cols-[1fr_330px]">
+          {/* Payment Methods */}
+          <div className="rounded-[16px] border border-[#e4dcd4] bg-white p-5">
+            <h2 className="text-[16px] font-bold text-[#171717]">
+              Payment Method
+            </h2>
 
-          <div className="space-y-[10px]">
-            {paymentMethods.map((method) => {
-              const selected = paymentMethod === method.id;
+            <p className="mt-1 text-[11px] text-[#9d9189]">
+              Select your preferred payment method.
+            </p>
 
-              return (
-                <button
-                  key={method.id}
-                  type="button"
-                  onClick={() => setPaymentMethod(method.id)}
-                  className={`flex w-full items-center gap-[12px] rounded-[12px] border p-[12px] text-left transition ${
-                    selected
-                      ? "border-[#cf632e] bg-[#fff7f1]"
-                      : "border-[#e4dcd4] bg-white hover:border-[#cf632e]"
+            {/* UPI */}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("upi")}
+              className={`mt-5 w-full rounded-[12px] border p-4 text-left transition ${
+                paymentMethod === "upi"
+                  ? "border-[#D15D2C] bg-[#fff7f3]"
+                  : "border-[#e4dcd4] bg-white"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#171717]">
+                    UPI
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-[#9d9189]">
+                    Google Pay, PhonePe, Paytm and more
+                  </p>
+                </div>
+
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                    paymentMethod === "upi"
+                      ? "border-[#D15D2C]"
+                      : "border-[#bdb4ad]"
                   }`}
                 >
-                  {/* Icon */}
-                  <div
-                    className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[11px] text-[20px] ${
-                      selected ? "bg-[#f2dfd2]" : "bg-[#f5f0eb]"
-                    }`}
-                  >
-                    {method.icon}
-                  </div>
+                  {paymentMethod === "upi" && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#D15D2C]" />
+                  )}
+                </div>
+              </div>
+            </button>
 
-                  {/* Text */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-[#292421]">
-                      {method.title}
-                    </p>
-
-                    <p className="mt-[2px] text-[10px] text-[#9a7567]">
-                      {method.description}
-                    </p>
-                  </div>
-
-                  {/* Radio */}
-                  <div
-                    className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border ${
-                      selected ? "border-[#cf632e]" : "border-[#cfc5bd]"
-                    }`}
-                  >
-                    {selected && (
-                      <span className="h-[9px] w-[9px] rounded-full bg-[#cf632e]" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* UPI Information */}
-          {paymentMethod === "upi" && (
-            <div className="mt-[14px] rounded-[11px] border border-[#e7dfd7] bg-[#faf7f3] px-[12px] py-[11px]">
-              <div className="flex items-start gap-[9px]">
-                <span className="text-[16px]">🔐</span>
-
+            {/* Card */}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("card")}
+              className={`mt-3 w-full rounded-[12px] border p-4 text-left transition ${
+                paymentMethod === "card"
+                  ? "border-[#D15D2C] bg-[#fff7f3]"
+                  : "border-[#e4dcd4] bg-white"
+              }`}
+            >
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] font-semibold text-[#5c5049]">
-                    Secure UPI Payment
+                  <p className="text-[13px] font-semibold text-[#171717]">
+                    Credit / Debit Card
                   </p>
 
-                  <p className="mt-[2px] text-[10px] leading-5 text-[#91837a]">
-                    You will be redirected to the secure payment gateway to
-                    complete your UPI payment.
+                  <p className="mt-1 text-[10px] text-[#9d9189]">
+                    Visa, Mastercard and more
                   </p>
                 </div>
+
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                    paymentMethod === "card"
+                      ? "border-[#D15D2C]"
+                      : "border-[#bdb4ad]"
+                  }`}
+                >
+                  {paymentMethod === "card" && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#D15D2C]" />
+                  )}
+                </div>
               </div>
+            </button>
+
+            {/* Net Banking */}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("netbanking")}
+              className={`mt-3 w-full rounded-[12px] border p-4 text-left transition ${
+                paymentMethod === "netbanking"
+                  ? "border-[#D15D2C] bg-[#fff7f3]"
+                  : "border-[#e4dcd4] bg-white"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#171717]">
+                    Net Banking
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-[#9d9189]">
+                    Pay using your bank account
+                  </p>
+                </div>
+
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                    paymentMethod === "netbanking"
+                      ? "border-[#D15D2C]"
+                      : "border-[#bdb4ad]"
+                  }`}
+                >
+                  {paymentMethod === "netbanking" && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#D15D2C]" />
+                  )}
+                </div>
+              </div>
+            </button>
+
+            {/* Secure Payment */}
+            <div className="mt-5 rounded-[10px] bg-[#f8f5f2] px-4 py-3">
+              <p className="text-[10px] leading-[1.5] text-[#8e8179]">
+                🔒 Your payment is securely processed by Razorpay. Smart Canteen
+                does not store your card or UPI credentials.
+              </p>
             </div>
-          )}
-        </div>
 
-        {/* Order Summary */}
-        <div className="mt-[16px] rounded-[14px] border border-[#e4dcd4] bg-white p-[16px]">
-          <h2 className="mb-[14px] text-[13px] font-semibold text-[#292421]">
-            Order Summary
-          </h2>
-
-          <div className="space-y-[10px]">
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 border-b border-[#eee7e1] pb-[9px]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] text-[#705f56]">
-                    {item.name} × {item.quantity}
-                  </p>
-                </div>
-
-                <span className="shrink-0 text-[11px] font-medium text-[#292421]">
-                  ₹
-                  {(
-                    Number(item.price || 0) * Number(item.quantity || 0)
-                  ).toFixed(2)}
-                </span>
+            {/* Error */}
+            {error && (
+              <div className="mt-4 rounded-[10px] border border-[#f0b9ad] bg-[#fff3f0] px-4 py-3">
+                <p className="text-[11px] leading-[1.5] text-[#d94f3d]">
+                  {error}
+                </p>
               </div>
-            ))}
+            )}
           </div>
 
-          <div className="mt-[13px] space-y-[9px] text-[11px]">
-            <div className="flex justify-between text-[#8a7b72]">
-              <span>Item Total</span>
-              <span>₹{itemTotal.toFixed(2)}</span>
+          {/* Order Summary */}
+          <div className="h-fit rounded-[16px] border border-[#e4dcd4] bg-white p-5">
+            <h2 className="text-[16px] font-bold text-[#171717]">
+              Order Summary
+            </h2>
+
+            {/* Items */}
+            <div className="mt-4 space-y-3">
+              {cartItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-medium text-[#171717]">
+                      {item.name}
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-[#9d9189]">
+                      {item.quantity} × ₹{item.price}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-[11px] font-semibold text-[#171717]">
+                    ₹
+                    {(
+                      Number(item.price || 0) * Number(item.quantity || 0)
+                    ).toFixed(2)}
+                  </span>
+                </div>
+              ))}
             </div>
 
-            <div className="flex justify-between text-[#8a7b72]">
-              <span>GST (5%)</span>
-              <span>₹{gst.toFixed(2)}</span>
+            <div className="my-4 h-px bg-[#eee8e3]" />
+
+            {/* Pickup */}
+            <div className="rounded-[10px] bg-[#fff7f3] px-3 py-3">
+              <p className="text-[9px] font-medium uppercase tracking-wide text-[#a07768]">
+                Pickup Time
+              </p>
+
+              <p className="mt-1 text-[13px] font-bold text-[#D15D2C]">
+                {pickupSlot}
+              </p>
             </div>
 
-            <div className="flex justify-between text-[#8a7b72]">
-              <span>Convenience Fee</span>
-              <span>
-                {convenienceFee === 0
-                  ? "Free"
-                  : `₹${convenienceFee.toFixed(2)}`}
-              </span>
+            {/* Price Details */}
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between text-[11px] text-[#8e8179]">
+                <span>Item Total</span>
+
+                <span>₹{Number(itemTotal || 0).toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between text-[11px] text-[#8e8179]">
+                <span>GST (5%)</span>
+
+                <span>₹{Number(gst || 0).toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between text-[11px] text-[#8e8179]">
+                <span>Convenience Fee</span>
+
+                <span>₹{Number(convenienceFee || 0).toFixed(2)}</span>
+              </div>
             </div>
 
-            <div className="my-[11px] border-t border-dashed border-[#ddd4cc]" />
+            <div className="my-4 h-px bg-[#eee8e3]" />
 
             <div className="flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-[#292421]">
-                Total to Pay
+              <span className="text-[13px] font-bold text-[#171717]">
+                Total
               </span>
 
-              <span className="text-[17px] font-bold text-[#cf632e]">
-                ₹{total.toFixed(2)}
+              <span className="text-[18px] font-bold text-[#D15D2C]">
+                ₹{Number(total || 0).toFixed(2)}
               </span>
             </div>
+
+            {/* Pay Button */}
+            <button
+              type="button"
+              onClick={handlePayment}
+              disabled={loading || !cartItems.length}
+              className={`mt-5 w-full rounded-[11px] px-4 py-3 text-[12px] font-semibold text-white transition ${
+                loading || !cartItems.length
+                  ? "cursor-not-allowed bg-[#c9c2bc]"
+                  : "bg-[#D15D2C] hover:bg-[#b95122]"
+              }`}
+            >
+              {loading
+                ? "Processing..."
+                : `Pay ₹${Number(total || 0).toFixed(2)}`}
+            </button>
           </div>
         </div>
-
-        {/* Security Information */}
-        <div className="mt-[14px] flex items-start gap-[9px] rounded-[11px] border border-[#dfe8d9] bg-[#f4faf2] px-[12px] py-[11px]">
-          <span className="text-[14px]">🔒</span>
-
-          <p className="text-[10px] leading-5 text-[#68715f]">
-            Your payment is securely processed through our payment gateway. We
-            never store your payment credentials.
-          </p>
-        </div>
-
-        {/* Pay Button */}
-        <button
-          type="button"
-          onClick={handlePayment}
-          className="mt-[18px] flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#cf632e] py-[13px] text-[12px] font-semibold text-white shadow-[0_4px_10px_rgba(207,97,46,0.18)] transition hover:bg-[#b95125]"
-        >
-          🔒 Pay ₹{total.toFixed(2)} & Confirm Order
-        </button>
-
-        {/* Back */}
-        <button
-          type="button"
-          onClick={() => navigate("/user/checkout")}
-          className="mt-[10px] w-full py-[8px] text-[11px] font-medium text-[#8a7b72] transition hover:text-[#cf632e]"
-        >
-          ← Back to Checkout
-        </button>
-      </main>
+      </div>
     </div>
   );
 };
