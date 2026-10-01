@@ -300,11 +300,7 @@ const ManageOrders = () => {
 
       await markOrderAsCollected(pickupOrder.id);
 
-      setPickupOrder((previousOrder) => ({
-        ...previousOrder,
-        status: "Delivered",
-        pickupStatus: "collected",
-      }));
+      setPickupOrder(null);
 
       setPickupMessage("Order successfully marked as collected.");
 

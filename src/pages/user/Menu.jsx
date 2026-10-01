@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 import Navbar from "../../components/common/Navbar";
-import { getMenu } from "../../services/menuService";
+import { subscribeToMenu } from "../../services/menuService";
+import {
+  subscribeToUserFavourites,
+  updateUserFavourites,
+} from "../../services/userService";
 
 const categories = ["All", "Breakfast", "Snacks", "Main Course", "Beverages"];
 
 const Menu = () => {
   const { addToCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
+
   const [menu, setMenu] = useState([]);
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
@@ -14,23 +21,64 @@ const Menu = () => {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ==========================================
+  // LISTEN TO MENU IN REAL TIME
+  // ==========================================
+
   useEffect(() => {
-    const loadMenu = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const firebaseMenu = await getMenu();
-
+    const unsubscribe = subscribeToMenu(
+      (firebaseMenu) => {
         setMenu(firebaseMenu);
-      } catch (error) {
-        console.error("Load Menu Error:", error);
-      } finally {
         setLoading(false);
-      }
-    };
+      },
+      (error) => {
+        console.error("Menu Listener Error:", error);
+        setMenu([]);
+        setLoading(false);
+      },
+    );
 
-    loadMenu();
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  // ==========================================
+  // LISTEN TO USER FAVOURITES IN REAL TIME
+  // ==========================================
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      setFavorites([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToUserFavourites(
+      user.uid,
+      (firebaseFavourites) => {
+        setFavorites(firebaseFavourites);
+      },
+      (error) => {
+        console.error("Favourites Listener Error:", error);
+
+        setFavorites([]);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, authLoading]);
+
+  // ==========================================
+  // FORMAT MENU ITEMS
+  // ==========================================
 
   const menuItems = useMemo(() => {
     return menu.map((item) => ({
@@ -46,6 +94,10 @@ const Menu = () => {
       batchable: item.batchable === true,
     }));
   }, [menu]);
+
+  // ==========================================
+  // FILTER MENU
+  // ==========================================
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
@@ -64,13 +116,29 @@ const Menu = () => {
     });
   }, [menuItems, activeCategory, search, availableOnly]);
 
-  const toggleFavorite = (id) => {
-    setFavorites((previousFavorites) =>
-      previousFavorites.includes(id)
-        ? previousFavorites.filter((itemId) => itemId !== id)
-        : [...previousFavorites, id],
-    );
+  // ==========================================
+  // TOGGLE FAVORITE
+  // ==========================================
+
+  const toggleFavorite = async (id) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const updatedFavorites = favorites.includes(id)
+        ? favorites.filter((itemId) => itemId !== id)
+        : [...favorites, id];
+
+      await updateUserFavourites(user.uid, updatedFavorites);
+    } catch (error) {
+      console.error("Update Favourite Error:", error);
+    }
   };
+
+  // ==========================================
+  // ADD TO CART
+  // ==========================================
 
   const handleAddToCart = async (item) => {
     try {
@@ -178,11 +246,12 @@ const Menu = () => {
                     {/* Favourite */}
                     <button
                       onClick={() => toggleFavorite(item.id)}
+                      disabled={!user}
                       className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-xl shadow transition-all duration-200 ${
                         favorite
                           ? "text-red-500"
                           : "text-[#a4968b] hover:text-red-400"
-                      }`}
+                      } ${!user ? "cursor-not-allowed opacity-50" : ""}`}
                     >
                       {favorite ? "♥" : "♡"}
                     </button>

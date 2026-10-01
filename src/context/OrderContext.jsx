@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 import {
-  getOrders,
   addOrder as addOrderToFirebase,
+  subscribeToOrders,
   updateOrderStatus as updateOrderStatusInFirebase,
   markOrderAsCollected as markOrderAsCollectedInFirebase,
   deleteOrder as deleteOrderFromFirebase,
@@ -15,25 +15,26 @@ export const OrderProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Load orders from Firebase
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const firebaseOrders = await getOrders();
-
-      setOrders(firebaseOrders);
-    } catch (error) {
-      console.error("Load Orders Error:", error);
-      setError("Failed to load orders.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Listen to orders in real time
   useEffect(() => {
-    loadOrders();
+    setLoading(true);
+    setError("");
+
+    const unsubscribe = subscribeToOrders(
+      (firebaseOrders) => {
+        setOrders(firebaseOrders);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Orders Listener Error:", error);
+        setError("Failed to load orders.");
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Add order
@@ -41,11 +42,10 @@ export const OrderProvider = ({ children }) => {
     try {
       const createdOrder = await addOrderToFirebase(newOrder);
 
-      setOrders((previousOrders) => [...previousOrders, createdOrder]);
-
       return createdOrder;
     } catch (error) {
       console.error("Add Order Error:", error);
+
       throw error;
     }
   };
@@ -54,17 +54,6 @@ export const OrderProvider = ({ children }) => {
   const updateOrderStatus = async (id, status) => {
     try {
       await updateOrderStatusInFirebase(id, status);
-
-      setOrders((previousOrders) =>
-        previousOrders.map((order) =>
-          order.id === id
-            ? {
-                ...order,
-                status: status,
-              }
-            : order,
-        ),
-      );
     } catch (error) {
       console.error("Update Order Status Error:", error);
 
@@ -76,18 +65,6 @@ export const OrderProvider = ({ children }) => {
   const markOrderAsCollected = async (id) => {
     try {
       await markOrderAsCollectedInFirebase(id);
-
-      setOrders((previousOrders) =>
-        previousOrders.map((order) =>
-          order.id === id
-            ? {
-                ...order,
-                status: "Delivered",
-                pickupStatus: "collected",
-              }
-            : order,
-        ),
-      );
     } catch (error) {
       console.error("Mark Order As Collected Error:", error);
 
@@ -99,15 +76,17 @@ export const OrderProvider = ({ children }) => {
   const deleteOrder = async (id) => {
     try {
       await deleteOrderFromFirebase(id);
-
-      setOrders((previousOrders) =>
-        previousOrders.filter((order) => order.id !== id),
-      );
     } catch (error) {
       console.error("Delete Order Error:", error);
 
       throw error;
     }
+  };
+
+  // Manually reload orders if needed
+  const loadOrders = async () => {
+    // Real-time listener already keeps orders updated.
+    // This function is kept for compatibility with existing screens.
   };
 
   return (

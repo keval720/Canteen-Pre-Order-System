@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  onSnapshot,
 } from "firebase/firestore";
 
 import { db } from "../config/Firebase";
@@ -55,4 +56,25 @@ export const deleteOrder = async (id) => {
   const orderRef = doc(db, "orders", id);
 
   await deleteDoc(orderRef);
+};
+
+export const subscribeToOrders = (onOrdersChange, onError) => {
+  return onSnapshot(
+    orderCollection,
+    (snapshot) => {
+      const orders = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }));
+
+      onOrdersChange(orders);
+    },
+    (error) => {
+      console.error("Orders Snapshot Error:", error);
+
+      if (onError) {
+        onError(error);
+      }
+    },
+  );
 };

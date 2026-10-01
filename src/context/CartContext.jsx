@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 
 import { db } from "../config/Firebase";
 import { useAuth } from "./AuthContext";
@@ -14,27 +14,27 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // ==========================================
-  // LOAD CART FROM FIRESTORE
+  // LISTEN TO CART FROM FIRESTORE IN REAL TIME
   // ==========================================
 
   useEffect(() => {
-    const loadCart = async () => {
-      if (authLoading) {
-        return;
-      }
+    if (authLoading) {
+      return;
+    }
 
-      if (!user) {
-        setCartItems([]);
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      setCartItems([]);
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
+    const userRef = doc(db, "users", user.uid);
 
-        const userRef = doc(db, "users", user.uid);
-        const snapshot = await getDoc(userRef);
+    setLoading(true);
 
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
         if (snapshot.exists()) {
           const userData = snapshot.data();
 
@@ -42,15 +42,20 @@ export const CartProvider = ({ children }) => {
         } else {
           setCartItems([]);
         }
-      } catch (error) {
-        console.error("Load Cart Error:", error);
-        setCartItems([]);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    loadCart();
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Cart Listener Error:", error);
+
+        setCartItems([]);
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, [user, authLoading]);
 
   // ==========================================
@@ -94,8 +99,6 @@ export const CartProvider = ({ children }) => {
           ? {
               ...cartItem,
               quantity: cartItem.quantity + 1,
-
-              // Keep latest preparation information
               preparationTime: Number(item.preparationTime || 0),
               batchable: item.batchable === true,
             }
@@ -112,8 +115,6 @@ export const CartProvider = ({ children }) => {
           price: Number(item.price || 0),
           image: item.image || item.imageUrl || "",
           quantity: 1,
-
-          // Preparation information
           preparationTime: Number(item.preparationTime || 0),
           batchable: item.batchable === true,
         },
@@ -121,8 +122,6 @@ export const CartProvider = ({ children }) => {
     }
 
     await saveCart(updatedCart);
-
-    setCartItems(updatedCart);
   };
 
   // ==========================================
@@ -144,8 +143,6 @@ export const CartProvider = ({ children }) => {
     );
 
     await saveCart(updatedCart);
-
-    setCartItems(updatedCart);
   };
 
   // ==========================================
@@ -178,8 +175,6 @@ export const CartProvider = ({ children }) => {
     );
 
     await saveCart(updatedCart);
-
-    setCartItems(updatedCart);
   };
 
   // ==========================================
@@ -194,8 +189,6 @@ export const CartProvider = ({ children }) => {
     const updatedCart = cartItems.filter((item) => item.id !== itemId);
 
     await saveCart(updatedCart);
-
-    setCartItems(updatedCart);
   };
 
   // ==========================================
@@ -208,8 +201,6 @@ export const CartProvider = ({ children }) => {
     }
 
     await saveCart([]);
-
-    setCartItems([]);
   };
 
   // ==========================================

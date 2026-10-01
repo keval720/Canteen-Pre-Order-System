@@ -1,4 +1,4 @@
-import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 import { db } from "../config/Firebase";
 
@@ -168,4 +168,41 @@ export const updateUserFavourites = async (userId, favourites) => {
   );
 
   return favourites;
+};
+
+// ==========================================
+// REAL-TIME USER FAVOURITES
+// ==========================================
+
+export const subscribeToUserFavourites = (
+  userId,
+  onFavouritesChange,
+  onError,
+) => {
+  const userRef = doc(db, "users", userId);
+
+  return onSnapshot(
+    userRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onFavouritesChange([]);
+        return;
+      }
+
+      const userData = snapshot.data();
+
+      const favourites = Array.isArray(userData.favourites)
+        ? userData.favourites
+        : [];
+
+      onFavouritesChange(favourites);
+    },
+    (error) => {
+      console.error("Favourites Snapshot Error:", error);
+
+      if (onError) {
+        onError(error);
+      }
+    },
+  );
 };
