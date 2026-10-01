@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import AdminLayout from "../../components/admin/AdminLayout";
 import uploadImage from "../../services/Cloudinary";
-import { getAdminProfile, saveAdminProfile } from "../../services/userService";
+import { logoutUser } from "../../services/authService";
+import {
+  subscribeToAdminProfile,
+  saveAdminProfile,
+} from "../../services/userService";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -21,13 +25,15 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ==========================================
+  // REAL-TIME ADMIN PROFILE
+  // ==========================================
+
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const adminProfile = await getAdminProfile();
-
+    const unsubscribe = subscribeToAdminProfile(
+      (adminProfile) => {
         if (adminProfile) {
           setProfile({
             name: adminProfile.name || "",
@@ -37,17 +43,36 @@ const Profile = () => {
           });
 
           setProfileImage(adminProfile.imageUrl || null);
-        }
-      } catch (error) {
-        console.error("Load Admin Profile Error:", error);
-        alert("Failed to load profile.");
-      } finally {
-        setLoading(false);
-      }
-    };
+        } else {
+          setProfile({
+            name: "",
+            email: "",
+            phone: "",
+            imageUrl: "",
+          });
 
-    loadProfile();
+          setProfileImage(null);
+        }
+
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Admin Profile Listener Error:", error);
+
+        setLoading(false);
+
+        alert("Failed to load profile.");
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  // ==========================================
+  // INPUT CHANGE
+  // ==========================================
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -57,6 +82,10 @@ const Profile = () => {
       [name]: value,
     }));
   };
+
+  // ==========================================
+  // CHANGE PHOTO
+  // ==========================================
 
   const handleChangePhoto = (event) => {
     const file = event.target.files[0];
@@ -79,6 +108,10 @@ const Profile = () => {
       imageFile: file,
     }));
   };
+
+  // ==========================================
+  // SAVE CHANGES
+  // ==========================================
 
   const handleSaveChanges = async () => {
     if (!profile.name.trim() || !profile.email.trim()) {
@@ -114,15 +147,32 @@ const Profile = () => {
       alert("Profile saved successfully.");
     } catch (error) {
       console.error("Save Admin Profile Error:", error);
+
       alert("Failed to save profile.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSignOut = () => {
-    navigate("/");
+  // ==========================================
+  // REAL FIREBASE SIGN OUT
+  // ==========================================
+
+  const handleSignOut = async () => {
+    try {
+      await logoutUser();
+
+      navigate("/");
+    } catch (error) {
+      console.error("Admin Sign Out Error:", error);
+
+      alert("Failed to sign out.");
+    }
   };
+
+  // ==========================================
+  // INITIALS
+  // ==========================================
 
   const initials = profile.name
     ? profile.name
@@ -206,7 +256,7 @@ const Profile = () => {
           </div>
 
           {/* Personal Information */}
-          <div className="mt-6 max-w-3xl rounded-2xl border border-[#eadfd6] bg-white p-5 sm:p-6">
+          <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-[#eadfd6] bg-white p-5 sm:p-6">
             <h2 className="text-base font-semibold text-[#171717]">
               Personal Information
             </h2>
@@ -274,10 +324,10 @@ const Profile = () => {
           </div>
 
           {/* Sign Out */}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-center">
             <button
               onClick={handleSignOut}
-              className="flex items-center justify-center gap-2 rounded-xl border border-[#ffd1d1] bg-white px-6 py-3 text-sm font-medium text-[#ef5350] transition-colors hover:bg-[#fff5f5]"
+              className="flex items-center justify-center gap-2 rounded-xl border border-[#ffd1d1] bg-white px-20 py-3 text-md font-medium text-[#ef5350] transition-colors hover:bg-[#fff5f5]"
             >
               <span>↪</span>
               Sign Out

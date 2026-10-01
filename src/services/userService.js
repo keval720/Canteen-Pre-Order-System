@@ -21,6 +21,34 @@ export const getAdminProfile = async () => {
   };
 };
 
+// ==========================================
+// REAL-TIME ADMIN PROFILE
+// ==========================================
+
+export const subscribeToAdminProfile = (onProfileChange, onError) => {
+  return onSnapshot(
+    adminProfileRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onProfileChange(null);
+        return;
+      }
+
+      onProfileChange({
+        id: snapshot.id,
+        ...snapshot.data(),
+      });
+    },
+    (error) => {
+      console.error("Admin Profile Snapshot Error:", error);
+
+      if (onError) {
+        onError(error);
+      }
+    },
+  );
+};
+
 export const saveAdminProfile = async (profileData) => {
   await setDoc(adminProfileRef, profileData, {
     merge: true,
@@ -199,6 +227,36 @@ export const subscribeToUserFavourites = (
     },
     (error) => {
       console.error("Favourites Snapshot Error:", error);
+
+      if (onError) {
+        onError(error);
+      }
+    },
+  );
+};
+
+// ==========================================
+// REAL-TIME USER PROFILE
+// ==========================================
+
+export const subscribeToUserProfile = (userId, onProfileChange, onError) => {
+  const userRef = doc(db, "users", userId);
+
+  return onSnapshot(
+    userRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onProfileChange(null);
+        return;
+      }
+
+      onProfileChange({
+        id: snapshot.id,
+        ...snapshot.data(),
+      });
+    },
+    (error) => {
+      console.error("User Profile Snapshot Error:", error);
 
       if (onError) {
         onError(error);

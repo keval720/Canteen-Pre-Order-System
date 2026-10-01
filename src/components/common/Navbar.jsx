@@ -106,7 +106,7 @@ const Navbar = () => {
 
           {/* Profile */}
           <button
-            onClick={() => navigate("/user/profile")}
+            onClick={() => navigate("/user/userprofile")}
             className={`flex h-[36px] w-[36px] items-center justify-center rounded-[11px] text-[11px] font-semibold transition-all duration-200 sm:h-[39px] sm:w-[39px] ${
               isActive("/user/profile")
                 ? "bg-[#cf612e] text-white"

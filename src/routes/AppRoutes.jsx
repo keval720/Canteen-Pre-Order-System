@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import UserLogin from "../pages/auth/UserLogin";
 import AdminLogin from "../pages/auth/AdminLogin";
+import UserProfile from "../pages/user/UserProfile";
 import ResetPass from "../pages/auth/ResetPass";
 import Dashboard from "../pages/admin/Dashboard";
 import RoleSelection from "../pages/RoleSelection";
@@ -38,6 +39,7 @@ const AppRoutes = () => {
           <Route path="/user/menu" element={<Menu />} />
           <Route path="/user/favourites" element={<Favourites />} />
           <Route path="/user/cart" element={<Cart />} />
+          <Route path="/user/userprofile" element={<UserProfile />} />
           <Route path="/user/checkout" element={<Checkout />} />
           <Route path="/user/payment" element={<Payment />} />
           <Route path="/user/order-success" element={<OrderSuccess />} />
