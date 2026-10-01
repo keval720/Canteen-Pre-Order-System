@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/common/Navbar";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-import { getMenu } from "../../services/menuService";
+import { subscribeToMenu } from "../../services/menuService";
 import {
-  getUserFavourites,
+  subscribeToUserFavourites,
   updateUserFavourites,
 } from "../../services/userService";
 
@@ -21,42 +21,75 @@ const Favourites = () => {
   const [loading, setLoading] = useState(true);
 
   // ==========================================
-  // LOAD MENU + FAVOURITES
+  // LISTEN TO MENU + FAVOURITES IN REAL TIME
   // ==========================================
 
   useEffect(() => {
-    const loadFavourites = async () => {
-      if (authLoading) return;
+    if (authLoading) {
+      return;
+    }
 
-      if (!user) {
-        setMenu([]);
-        setFavorites([]);
+    if (!user) {
+      setMenu([]);
+      setFavorites([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    let menuLoaded = false;
+    let favouritesLoaded = false;
+
+    const checkLoading = () => {
+      if (menuLoaded && favouritesLoaded) {
         setLoading(false);
-        return;
       }
+    };
 
-      try {
-        setLoading(true);
-
-        const [firebaseMenu, userFavourites] = await Promise.all([
-          getMenu(),
-          getUserFavourites(user.uid),
-        ]);
-
+    const unsubscribeMenu = subscribeToMenu(
+      (firebaseMenu) => {
         const availableMenu = firebaseMenu.filter(
           (item) => item.status === true,
         );
 
         setMenu(availableMenu);
-        setFavorites(userFavourites);
-      } catch (error) {
-        console.error("Load Favourite Menu Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    loadFavourites();
+        menuLoaded = true;
+        checkLoading();
+      },
+      (error) => {
+        console.error("Favourite Menu Listener Error:", error);
+
+        setMenu([]);
+
+        menuLoaded = true;
+        checkLoading();
+      },
+    );
+
+    const unsubscribeFavourites = subscribeToUserFavourites(
+      user.uid,
+      (firebaseFavourites) => {
+        setFavorites(firebaseFavourites);
+
+        favouritesLoaded = true;
+        checkLoading();
+      },
+      (error) => {
+        console.error("Favourites Listener Error:", error);
+
+        setFavorites([]);
+
+        favouritesLoaded = true;
+        checkLoading();
+      },
+    );
+
+    return () => {
+      unsubscribeMenu();
+      unsubscribeFavourites();
+    };
   }, [user, authLoading]);
 
   // ==========================================
@@ -64,19 +97,16 @@ const Favourites = () => {
   // ==========================================
 
   const removeFavorite = async (id) => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       const updatedFavorites = favorites.filter((itemId) => itemId !== id);
 
-      setFavorites(updatedFavorites);
-
       await updateUserFavourites(user.uid, updatedFavorites);
     } catch (error) {
       console.error("Remove Favourite Error:", error);
-
-      // Restore UI if Firebase update fails
-      setFavorites(favorites);
     }
   };
 
@@ -93,6 +123,8 @@ const Favourites = () => {
         category: item.category || "",
         price: Number(item.price || 0),
         image: item.imageUrl || "",
+        preparationTime: Number(item.preparationTime || 0),
+        batchable: item.batchable === true,
       });
     } catch (error) {
       console.error("Add To Cart Error:", error);
