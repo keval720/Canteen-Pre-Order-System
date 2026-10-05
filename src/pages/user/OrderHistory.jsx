@@ -1,15 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
 import { useOrders } from "../../context/OrderContext";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 
 const OrderHistory = () => {
   const navigate = useNavigate();
 
   const { orders } = useOrders();
   const { user } = useAuth();
+  const { reorderItems } = useCart();
+
+  const [reorderingOrderId, setReorderingOrderId] = useState(null);
 
   const userOrders = useMemo(() => {
     if (!user) {
@@ -54,10 +59,34 @@ const OrderHistory = () => {
     };
   };
 
-  const handleReorder = (order) => {
-    console.log("Reordering:", order.id);
-    navigate("/user/cart");
+  // ==========================================
+  // REORDER
+  // ==========================================
+
+  const handleReorder = async (order) => {
+    if (!order.items?.length) {
+      alert("This order has no items to reorder.");
+      return;
+    }
+
+    try {
+      setReorderingOrderId(order.id);
+
+      await reorderItems(order.items);
+
+      navigate("/user/cart");
+    } catch (error) {
+      console.error("Reorder Error:", error);
+
+      alert(error.message || "Unable to reorder this order.");
+    } finally {
+      setReorderingOrderId(null);
+    }
   };
+
+  // ==========================================
+  // OPEN ORDER
+  // ==========================================
 
   const handleOrderClick = (order) => {
     navigate("/user/order-success", {
@@ -81,12 +110,27 @@ const OrderHistory = () => {
 
         {/* Orders */}
         <div className="flex flex-col gap-4">
-          {userOrders.map((order) => {
+          {userOrders.map((order, index) => {
             const statusStyles = getStatusStyles(order.status);
 
+            const isReordering = reorderingOrderId === order.id;
+
             return (
-              <div
+              <motion.div
                 key={order.id}
+                initial={{
+                  opacity: 0,
+                  scale: 0.98,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
                 onClick={() => handleOrderClick(order)}
                 className="min-w-0 cursor-pointer rounded-[15px] border border-[#e2d8ce] bg-white p-4 shadow-sm transition hover:shadow-md"
               >
@@ -142,13 +186,17 @@ const OrderHistory = () => {
                       event.stopPropagation();
                       handleReorder(order);
                     }}
-                    className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#d55c29] transition hover:bg-[#e8ded3]"
+                    disabled={reorderingOrderId !== null}
+                    className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#d55c29] transition hover:bg-[#e8ded3] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <span className="text-base">↻</span>
-                    Reorder
+                    <span className="text-base">
+                      {isReordering ? "..." : "↻"}
+                    </span>
+
+                    {isReordering ? "Adding..." : "Reorder"}
                   </button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

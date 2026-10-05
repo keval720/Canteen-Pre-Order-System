@@ -9,15 +9,18 @@ const OrderSuccess = () => {
   const navigate = useNavigate();
 
   const { user } = useAuth();
-  const { orders } = useOrders();
+  const { orders, loading: ordersLoading } = useOrders();
 
   const [order, setOrder] = useState(null);
-
   const [loading, setLoading] = useState(true);
 
   const stateOrderId = location.state?.orderId;
 
   useEffect(() => {
+    if (ordersLoading) {
+      return;
+    }
+
     if (!user || !stateOrderId) {
       setLoading(false);
       return;
@@ -32,10 +35,10 @@ const OrderSuccess = () => {
     }
 
     setLoading(false);
-  }, [orders, stateOrderId, user]);
+  }, [orders, ordersLoading, stateOrderId, user]);
 
   // Show loading while finding the order
-  if (loading) {
+  if (loading || ordersLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8f5f2]">
         <p className="text-sm text-[#8e8179]">Loading order...</p>

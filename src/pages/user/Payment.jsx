@@ -35,25 +35,26 @@ const Payment = () => {
   };
 
   useEffect(() => {
-    const loadRazorpayScript = () => {
-      if (
-        document.querySelector(
-          'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-        )
-      ) {
-        return;
+    const scriptSrc = "https://checkout.razorpay.com/v1/checkout.js";
+
+    const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+
+    if (existingScript) {
+      return;
+    }
+
+    const script = document.createElement("script");
+
+    script.src = scriptSrc;
+    script.async = true;
+
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
       }
-
-      const script = document.createElement("script");
-
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-
-      script.async = true;
-
-      document.body.appendChild(script);
     };
-
-    loadRazorpayScript();
   }, []);
 
   const createFirebaseOrder = async (razorpayResponse) => {

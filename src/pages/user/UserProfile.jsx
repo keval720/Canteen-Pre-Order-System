@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
@@ -22,23 +23,27 @@ const UserProfile = () => {
     phone: "",
   });
 
-  const [completedOrders, setCompletedOrders] = useState(0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  // ==========================================
+  // COMPLETED ORDERS
+  // ==========================================
+
+  const completedOrders = useMemo(() => {
     if (!user) {
-      setCompletedOrders(0);
-      return;
+      return 0;
     }
 
-    const userCompletedOrders = orders.filter(
+    return orders.filter(
       (order) => order.userId === user.uid && order.status === "Delivered",
-    );
-
-    setCompletedOrders(userCompletedOrders.length);
+    ).length;
   }, [orders, user]);
+
+  // ==========================================
+  // REAL-TIME USER PROFILE
+  // ==========================================
 
   useEffect(() => {
     if (authLoading) {
@@ -74,8 +79,8 @@ const UserProfile = () => {
           });
         }
       },
-      (error) => {
-        console.error("User Profile Listener Error:", error);
+      (profileError) => {
+        console.error("User Profile Listener Error:", profileError);
 
         setError("Unable to load your profile.");
       },
@@ -129,8 +134,9 @@ const UserProfile = () => {
       });
 
       setMessage("Profile updated successfully.");
-    } catch (error) {
-      console.error("Update Profile Error:", error);
+    } catch (saveError) {
+      console.error("Update Profile Error:", saveError);
+
       setError("Unable to update your profile.");
     } finally {
       setSaving(false);
@@ -145,8 +151,9 @@ const UserProfile = () => {
     try {
       await logoutUser();
       navigate("/user/login");
-    } catch (error) {
-      console.error("Logout Error:", error);
+    } catch (logoutError) {
+      console.error("Logout Error:", logoutError);
+
       setError("Unable to sign out. Please try again.");
     }
   };
@@ -195,19 +202,27 @@ const UserProfile = () => {
 
       {/* Main */}
       <main className="mx-auto w-full max-w-[1050px] px-4 pb-[60px] pt-[76px] sm:px-6 sm:pt-[78px] lg:px-0 lg:pt-[80px]">
-        {/* ==========================================
-            HEADING
-        ========================================== */}
-
+        {/* Heading */}
         <h1 className="font-serif text-[24px] text-[#171717] sm:text-[27px] lg:text-[29px]">
           My Profile
         </h1>
 
-        {/* ==========================================
-            PROFILE HEADER
-        ========================================== */}
-
-        <section className="mt-[16px] rounded-[15px] bg-gradient-to-r from-[#ce5b2b] to-[#b94e24] px-[16px] py-[18px] text-white sm:px-[20px] sm:py-[19px] lg:px-[22px]">
+        {/* Profile Header */}
+        <motion.section
+          initial={{
+            opacity: 0,
+            scale: 0.98,
+          }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+          }}
+          transition={{
+            duration: 0.45,
+            ease: "easeOut",
+          }}
+          className="mt-[16px] rounded-[15px] bg-gradient-to-r from-[#ce5b2b] to-[#b94e24] px-[16px] py-[18px] text-white sm:px-[20px] sm:py-[19px] lg:px-[22px]"
+        >
           <div className="flex items-center gap-[13px] sm:gap-[15px]">
             {/* Avatar */}
             <div className="flex h-[51px] w-[51px] shrink-0 items-center justify-center rounded-[12px] bg-white/20 text-[17px] font-bold sm:h-[55px] sm:w-[55px] sm:text-[18px] lg:h-[58px] lg:w-[58px] lg:text-[19px]">
@@ -225,30 +240,37 @@ const UserProfile = () => {
               </p>
 
               <div className="mt-[6px] flex flex-wrap items-center gap-[6px] sm:gap-[8px]">
-                {/* Verified */}
                 <span className="rounded-full bg-white/20 px-[8px] py-[3px] text-[8px] font-medium sm:px-[9px] sm:py-[3px] sm:text-[9px] lg:text-[10px]">
                   ✓ Verified
                 </span>
 
-                {/* Orders */}
                 <span className="text-[8px] text-orange-100 sm:text-[9px] lg:text-[10px]">
                   {completedOrders} completed orders
                 </span>
               </div>
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        {/* ==========================================
-            PROFILE CONTENT
-        ========================================== */}
-
+        {/* Profile Content */}
         <div className="mt-[16px] flex flex-col gap-[16px] sm:flex-row sm:items-start sm:gap-[16px] lg:gap-[18px]">
-          {/* ==========================================
-              PERSONAL INFORMATION
-          ========================================== */}
-
-          <section className="w-full rounded-[15px] border border-[#e6ddd5] bg-white p-[16px] sm:w-1/2 sm:p-[17px] lg:p-[18px]">
+          {/* Personal Information */}
+          <motion.section
+            initial={{
+              opacity: 0,
+              scale: 0.98,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+            }}
+            transition={{
+              duration: 0.45,
+              delay: 0.07,
+              ease: "easeOut",
+            }}
+            className="w-full rounded-[15px] border border-[#e6ddd5] bg-white p-[16px] sm:w-1/2 sm:p-[17px] lg:p-[18px]"
+          >
             <h2 className="text-[12px] font-semibold text-[#171717] sm:text-[13px] lg:text-[14px]">
               Personal Information
             </h2>
@@ -322,15 +344,28 @@ const UserProfile = () => {
                 {saving ? "Saving..." : "Save Changes"}
               </button>
             </form>
-          </section>
+          </motion.section>
 
-          {/* ==========================================
-              PROFILE OPTIONS
-          ========================================== */}
-
-          <section className="w-full self-start overflow-hidden rounded-[15px] border border-[#e6ddd5] bg-white sm:w-1/2">
+          {/* Profile Options */}
+          <motion.section
+            initial={{
+              opacity: 0,
+              scale: 0.98,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+            }}
+            transition={{
+              duration: 0.45,
+              delay: 0.14,
+              ease: "easeOut",
+            }}
+            className="w-full self-start overflow-hidden rounded-[15px] border border-[#e6ddd5] bg-white sm:w-1/2"
+          >
             {/* Order History */}
             <button
+              type="button"
               onClick={() => navigate("/user/order-history")}
               className="flex h-[45px] w-full items-center border-b border-[#eee6df] px-[16px] text-left transition hover:bg-[#faf7f2] sm:h-[49px] sm:px-[17px] lg:h-[52px] lg:px-[18px]"
             >
@@ -353,6 +388,7 @@ const UserProfile = () => {
 
             {/* Favourites */}
             <button
+              type="button"
               onClick={() => navigate("/user/favourites")}
               className="flex h-[45px] w-full items-center border-b border-[#eee6df] px-[16px] text-left transition hover:bg-[#faf7f2] sm:h-[49px] sm:px-[17px] lg:h-[52px] lg:px-[18px]"
             >
@@ -371,6 +407,7 @@ const UserProfile = () => {
 
             {/* Change Password */}
             <button
+              type="button"
               onClick={() => navigate("/resetPass")}
               className="flex h-[45px] w-full items-center border-b border-[#eee6df] px-[16px] text-left transition hover:bg-[#faf7f2] sm:h-[49px] sm:px-[17px] lg:h-[52px] lg:px-[18px]"
             >
@@ -389,6 +426,7 @@ const UserProfile = () => {
 
             {/* Sign Out */}
             <button
+              type="button"
               onClick={handleLogout}
               className="flex h-[45px] w-full items-center px-[16px] text-left transition hover:bg-[#fff4ef] sm:h-[49px] sm:px-[17px] lg:h-[52px] lg:px-[18px]"
             >
@@ -400,7 +438,7 @@ const UserProfile = () => {
                 Sign Out
               </span>
             </button>
-          </section>
+          </motion.section>
         </div>
       </main>
     </div>

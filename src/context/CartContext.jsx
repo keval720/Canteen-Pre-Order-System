@@ -125,6 +125,51 @@ export const CartProvider = ({ children }) => {
   };
 
   // ==========================================
+  // REORDER ITEMS
+  // ==========================================
+
+  const reorderItems = async (orderItems) => {
+    if (!user) {
+      throw new Error("Please login to manage your cart.");
+    }
+
+    if (!Array.isArray(orderItems) || orderItems.length === 0) {
+      throw new Error("This order has no items to reorder.");
+    }
+
+    const updatedCart = [...cartItems];
+
+    orderItems.forEach((orderItem) => {
+      const existingItemIndex = updatedCart.findIndex(
+        (cartItem) => cartItem.id === orderItem.id,
+      );
+
+      if (existingItemIndex !== -1) {
+        updatedCart[existingItemIndex] = {
+          ...updatedCart[existingItemIndex],
+          quantity:
+            Number(updatedCart[existingItemIndex].quantity || 0) +
+            Number(orderItem.quantity || 0),
+        };
+      } else {
+        updatedCart.push({
+          id: orderItem.id,
+          name: orderItem.name,
+          description: orderItem.description || "",
+          category: orderItem.category || "",
+          price: Number(orderItem.price || 0),
+          image: orderItem.image || orderItem.imageUrl || "",
+          quantity: Number(orderItem.quantity || 1),
+          preparationTime: Number(orderItem.preparationTime || 0),
+          batchable: orderItem.batchable === true,
+        });
+      }
+    });
+
+    await saveCart(updatedCart);
+  };
+
+  // ==========================================
   // INCREASE QUANTITY
   // ==========================================
 
@@ -247,6 +292,7 @@ export const CartProvider = ({ children }) => {
         loading,
 
         addToCart,
+        reorderItems,
         increaseQuantity,
         decreaseQuantity,
         removeFromCart,

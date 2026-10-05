@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
@@ -97,12 +98,25 @@ const Cart = () => {
         ========================================== */}
 
         <div className="space-y-[14px]">
-          {cartItems.map((item) => {
+          {cartItems.map((item, index) => {
             const itemTotalPrice = item.price * item.quantity;
 
             return (
-              <div
+              <motion.div
                 key={item.id}
+                initial={{
+                  opacity: 0,
+                  scale: 0.98,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
                 className="relative rounded-[17px] border border-[#e8dfd7] bg-white p-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
               >
                 {/* Remove */}
@@ -183,18 +197,19 @@ const Cart = () => {
                     </p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
         {/* Mobile Continue Shopping */}
-        <div className="mb-[18px] min-[768px]:hidden mt-3">
+        <div className="mb-[18px] mt-3 min-[768px]:hidden">
           <button
             onClick={() => navigate("/user/menu")}
             className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-[#ded5cc] bg-white py-[11px] text-[12px] font-semibold text-[#625a54] transition hover:border-[#cf612e] hover:text-[#cf612e]"
           >
             <span className="text-[17px] leading-none">←</span>
+
             <span>Continue Shopping</span>
           </button>
         </div>

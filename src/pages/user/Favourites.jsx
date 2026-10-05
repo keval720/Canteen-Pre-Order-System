@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+
 import { subscribeToMenu } from "../../services/menuService";
+
 import {
   subscribeToUserFavourites,
   updateUserFavourites,
@@ -137,6 +140,10 @@ const Favourites = () => {
 
   const visibleFavorites = menu.filter((item) => favorites.includes(item.id));
 
+  // ==========================================
+  // UI
+  // ==========================================
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#faf7f2]">
       {/* Navbar */}
@@ -161,9 +168,22 @@ const Favourites = () => {
         ) : favorites.length > 0 && visibleFavorites.length > 0 ? (
           /* Favourite Items */
           <div className="grid w-full max-w-[790px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleFavorites.map((item) => (
-              <div
+            {visibleFavorites.map((item, index) => (
+              <motion.div
                 key={item.id}
+                initial={{
+                  opacity: 0,
+                  scale: 0.98,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
                 className="min-w-0 overflow-hidden rounded-[15px] border border-[#e4dcd4] bg-white shadow-sm"
               >
                 {/* Image */}
@@ -221,7 +241,7 @@ const Favourites = () => {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         ) : (

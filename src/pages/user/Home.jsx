@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
 import MenuCard from "../../components/user/MenuCard";
-import { getMenu } from "../../services/menuService";
+
+import { useAuth } from "../../context/AuthContext";
+import { subscribeToMenu } from "../../services/menuService";
 
 /* =========================================================
    HOME PAGE
@@ -12,36 +15,57 @@ import { getMenu } from "../../services/menuService";
 const Home = () => {
   const navigate = useNavigate();
 
+  const { user, profile, loading: authLoading } = useAuth();
+
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // ==========================================
+  // REAL-TIME MENU
+  // ==========================================
 
   useEffect(() => {
-    const loadMenu = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
+    setError("");
 
-        const firebaseMenu = await getMenu();
-
+    const unsubscribe = subscribeToMenu(
+      (firebaseMenu) => {
         setMenu(firebaseMenu);
-      } catch (error) {
-        console.error("Home Menu Error:", error);
-      } finally {
         setLoading(false);
-      }
-    };
+      },
+      (firebaseError) => {
+        console.error("Home Menu Listener Error:", firebaseError);
 
-    loadMenu();
+        setError("Unable to load menu.");
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  /*
-   * --------------------------------
-   * MENU DATA
-   * --------------------------------
-   */
+  // ==========================================
+  // AVAILABLE MENU
+  // ==========================================
 
-  const availableItems = menu.filter((item) => item.status === true);
+  const availableItems = useMemo(() => {
+    return menu.filter((item) => item.status === true);
+  }, [menu]);
 
-  const popularItems = availableItems.slice(0, 4);
+  // ==========================================
+  // POPULAR ITEMS
+  // ==========================================
+
+  const popularItems = useMemo(() => {
+    return availableItems.slice(0, 4);
+  }, [availableItems]);
+
+  // ==========================================
+  // FORMAT MENU ITEM
+  // ==========================================
 
   const formatMenuItem = (item) => ({
     id: item.id,
@@ -52,8 +76,41 @@ const Home = () => {
     image: item.imageUrl || "",
   });
 
-  const popularMenuItems = popularItems.map(formatMenuItem);
-  const availableMenuItems = availableItems.map(formatMenuItem);
+  // ==========================================
+  // FORMATTED MENU DATA
+  // ==========================================
+
+  const popularMenuItems = useMemo(() => {
+    return popularItems.map(formatMenuItem);
+  }, [popularItems]);
+
+  const availableMenuItems = useMemo(() => {
+    return availableItems.map(formatMenuItem);
+  }, [availableItems]);
+
+  // ==========================================
+  // USER NAME
+  // ==========================================
+
+  const userName = profile?.name || user?.displayName || "User";
+
+  const firstName = userName.trim().split(" ")[0] || "User";
+
+  // ==========================================
+  // LOADING AUTH
+  // ==========================================
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#faf7f2]">
+        <Navbar />
+
+        <main className="flex min-h-screen items-center justify-center pt-[63px]">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#eadfd6] border-t-[#d15d2c]" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#faf7f2]">
@@ -62,7 +119,10 @@ const Home = () => {
 
       {/* Main */}
       <main className="mx-auto max-w-[1050px] px-4 pb-[60px] pt-[63px] lg:px-0">
-        {/* Hero */}
+        {/* ========================================== */}
+        {/* HERO */}
+        {/* ========================================== */}
+
         <section className="relative mt-[25px] h-[245px] overflow-hidden rounded-[21px]">
           <img
             src="https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1500&q=90"
@@ -84,7 +144,7 @@ const Home = () => {
 
             {/* Greeting */}
             <h1 className="font-serif text-[30px] leading-[1.1] text-white sm:text-[36px]">
-              Good afternoon, <span className="italic">Priya</span> 👋
+              Good afternoon, <span className="italic">{firstName}</span> 👋
             </h1>
 
             <p className="mt-[8px] text-[12px] text-white">
@@ -92,6 +152,7 @@ const Home = () => {
             </p>
 
             <button
+              type="button"
               onClick={() => navigate("/user/menu")}
               className="mt-[20px] w-fit rounded-[10px] bg-white px-[25px] py-[10px] text-[11px] font-semibold text-[#c95e2c] shadow-sm transition hover:bg-[#fff8f2]"
             >
@@ -100,8 +161,10 @@ const Home = () => {
           </div>
         </section>
 
+        {/* ========================================== */}
+        {/* POPULAR TODAY */}
+        {/* ========================================== */}
 
-        {/* Popular Today */}
         <section className="mt-[38px]">
           <div className="flex items-end justify-between">
             <div>
@@ -115,6 +178,7 @@ const Home = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => navigate("/user/menu")}
               className="mb-[2px] text-[11px] font-medium text-[#ce612e] hover:underline"
             >
@@ -127,19 +191,43 @@ const Home = () => {
               <p className="col-span-full py-8 text-center text-sm text-[#a17d6e]">
                 Loading menu...
               </p>
+            ) : error ? (
+              <p className="col-span-full py-8 text-center text-sm text-red-500">
+                {error}
+              </p>
             ) : popularMenuItems.length === 0 ? (
               <p className="col-span-full py-8 text-center text-sm text-[#a17d6e]">
                 No dishes available.
               </p>
             ) : (
-              popularMenuItems.map((item) => (
-                <MenuCard key={item.id} item={item} />
+              popularMenuItems.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.98,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  transition={{
+                    duration: 0.45,
+                    delay: index * 0.07,
+                    ease: "easeOut",
+                  }}
+                >
+                  <MenuCard item={item} />
+                </motion.div>
               ))
             )}
           </div>
         </section>
 
-        {/* Available Now */}
+        {/* ========================================== */}
+        {/* AVAILABLE NOW */}
+        {/* ========================================== */}
+
         <section className="mt-[38px]">
           <div className="flex items-end justify-between">
             <div>
@@ -155,6 +243,7 @@ const Home = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => navigate("/user/menu")}
               className="mb-[2px] text-[11px] font-medium text-[#ce612e] hover:underline"
             >
@@ -167,13 +256,34 @@ const Home = () => {
               <p className="col-span-full py-8 text-center text-sm text-[#a17d6e]">
                 Loading menu...
               </p>
+            ) : error ? (
+              <p className="col-span-full py-8 text-center text-sm text-red-500">
+                {error}
+              </p>
             ) : availableMenuItems.length === 0 ? (
               <p className="col-span-full py-8 text-center text-sm text-[#a17d6e]">
                 No dishes available right now.
               </p>
             ) : (
-              availableMenuItems.map((item) => (
-                <MenuCard key={item.id} item={item} />
+              availableMenuItems.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.98,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  transition={{
+                    duration: 0.45,
+                    delay: index * 0.07,
+                    ease: "easeOut",
+                  }}
+                >
+                  <MenuCard item={item} />
+                </motion.div>
               ))
             )}
           </div>
