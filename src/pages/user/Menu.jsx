@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
+
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
+
 import Navbar from "../../components/common/Navbar";
+
 import { subscribeToMenu } from "../../services/menuService";
+
 import {
   subscribeToUserFavourites,
   updateUserFavourites,
@@ -66,7 +71,6 @@ const Menu = () => {
       },
       (error) => {
         console.error("Favourites Listener Error:", error);
-
         setFavorites([]);
       },
     );
@@ -89,7 +93,6 @@ const Menu = () => {
       description: item.description || "",
       image: item.imageUrl || "",
       available: item.status === true,
-
       preparationTime: Number(item.preparationTime || 0),
       batchable: item.batchable === true,
     }));
@@ -147,6 +150,10 @@ const Menu = () => {
       console.error("Add To Cart Error:", error);
     }
   };
+
+  // ==========================================
+  // UI
+  // ==========================================
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#faf7f2]">
@@ -219,12 +226,25 @@ const Menu = () => {
           </div>
         ) : (
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const favorite = favorites.includes(item.id);
 
               return (
-                <div
+                <motion.div
                   key={item.id}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.98,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  transition={{
+                    duration: 0.45,
+                    delay: index * 0.07,
+                    ease: "easeOut",
+                  }}
                   className="min-w-0 overflow-hidden rounded-[15px] border border-[#e4dcd4] bg-white shadow-sm"
                 >
                   {/* Image */}
@@ -309,7 +329,7 @@ const Menu = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

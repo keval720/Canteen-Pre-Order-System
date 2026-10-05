@@ -1,11 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 
-const MenuCard = ({ item }) => {
-  const [favorite, setFavorite] = useState(false);
+import {
+  subscribeToUserFavourites,
+  updateUserFavourites,
+} from "../../services/userService";
 
+const MenuCard = ({ item }) => {
+  const { user } = useAuth();
   const { addToCart } = useCart();
+
+  const [favorite, setFavorite] = useState(false);
+  const [favourites, setFavourites] = useState([]);
+
+  // ==========================================
+  // REAL-TIME FAVOURITES
+  // ==========================================
+
+  useEffect(() => {
+    if (!user) {
+      setFavourites([]);
+      setFavorite(false);
+      return;
+    }
+
+    const unsubscribe = subscribeToUserFavourites(
+      user.uid,
+      (userFavourites) => {
+        setFavourites(userFavourites);
+
+        setFavorite(userFavourites.includes(item.id));
+      },
+      (error) => {
+        console.error("Menu Card Favourite Listener Error:", error);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, item.id]);
+
+  // ==========================================
+  // TOGGLE FAVOURITE
+  // ==========================================
+
+  const handleFavorite = async () => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      let updatedFavourites;
+
+      if (favourites.includes(item.id)) {
+        updatedFavourites = favourites.filter((id) => id !== item.id);
+      } else {
+        updatedFavourites = [...favourites, item.id];
+      }
+
+      await updateUserFavourites(user.uid, updatedFavourites);
+
+      // Firebase listener will also update this.
+      setFavorite(updatedFavourites.includes(item.id));
+    } catch (error) {
+      console.error("Update Favourite Error:", error);
+    }
+  };
+
+  // ==========================================
+  // ADD TO CART
+  // ==========================================
 
   const handleAddToCart = async () => {
     try {
@@ -36,7 +103,7 @@ const MenuCard = ({ item }) => {
 
         {/* Favourite */}
         <button
-          onClick={() => setFavorite(!favorite)}
+          onClick={handleFavorite}
           className="absolute right-[9px] top-[9px] flex h-[31px] w-[31px] items-center justify-center rounded-full bg-white text-[20px] shadow-[0_1px_5px_rgba(0,0,0,0.12)]"
         >
           {favorite ? (

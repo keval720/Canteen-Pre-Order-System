@@ -14,6 +14,7 @@ const ManageOrders = () => {
   const [pickupError, setPickupError] = useState("");
   const [pickupMessage, setPickupMessage] = useState("");
   const [collecting, setCollecting] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
   // Lost code verification
   const [showAlternativeVerification, setShowAlternativeVerification] =
@@ -120,12 +121,20 @@ const ManageOrders = () => {
       return;
     }
 
+    if (updatingOrderId) {
+      return;
+    }
+
     try {
+      setUpdatingOrderId(order.id);
+
       await updateOrderStatus(order.id, nextStatus);
     } catch (error) {
       console.error("Manage Orders Status Error:", error);
 
       alert("Failed to update order status.");
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -935,11 +944,14 @@ const ManageOrders = () => {
                     ) : (
                       <button
                         onClick={() => handleStatusUpdate(order)}
-                        className="flex items-center gap-2 rounded-xl bg-[#d15d2c] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#b94f25]"
+                        disabled={updatingOrderId === order.id}
+                        className="flex items-center gap-2 rounded-xl bg-[#d15d2c] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#b94f25] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {getActionText(order.status)}
+                        {updatingOrderId === order.id
+                          ? "Updating..."
+                          : getActionText(order.status)}
 
-                        <span>→</span>
+                        {updatingOrderId !== order.id && <span>→</span>}
                       </button>
                     )}
                   </div>
