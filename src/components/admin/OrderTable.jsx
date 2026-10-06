@@ -1,8 +1,25 @@
+import { useMemo } from "react";
+import { motion } from "motion/react";
+
 import { useOrders } from "../../context/OrderContext";
 import OrderStatusControl from "./OrderStatusControl";
 
 const OrderTable = () => {
   const { orders, loading, error } = useOrders();
+
+  const sortedOrders = useMemo(() => {
+    const statusPriority = {
+      Pending: 1,
+      Preparing: 2,
+      "Waiting for Pickup": 3,
+      Delivered: 4,
+    };
+
+    return [...orders].sort(
+      (a, b) =>
+        (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99),
+    );
+  }, [orders]);
 
   if (loading) {
     return (
@@ -62,9 +79,22 @@ const OrderTable = () => {
           </thead>
 
           <tbody>
-            {orders.map((order) => (
-              <tr
+            {sortedOrders.map((order, index) => (
+              <motion.tr
                 key={order.id}
+                initial={{
+                  opacity: 0,
+                  scale: 0.98,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
                 className="border-b border-[#f0e8e1] last:border-b-0"
               >
                 <td className="px-5 py-4 text-sm font-semibold text-[#403630]">
@@ -94,7 +124,7 @@ const OrderTable = () => {
                 <td className="px-5 py-4">
                   <OrderStatusControl order={order} />
                 </td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>
@@ -102,9 +132,22 @@ const OrderTable = () => {
 
       {/* Mobile */}
       <div className="space-y-4 md:hidden">
-        {orders.map((order) => (
-          <div
+        {sortedOrders.map((order, index) => (
+          <motion.div
             key={order.id}
+            initial={{
+              opacity: 0,
+              scale: 0.98,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+            }}
+            transition={{
+              duration: 0.45,
+              delay: index * 0.07,
+              ease: "easeOut",
+            }}
             className="rounded-xl border border-[#eadfd6] bg-white p-4"
           >
             <div className="mb-3 flex items-start justify-between gap-3">
@@ -124,6 +167,7 @@ const OrderTable = () => {
             <div className="space-y-2 text-sm">
               <div>
                 <span className="text-[#806f65]">Items: </span>
+
                 <span className="text-[#594c45]">
                   {order.items?.length
                     ? order.items
@@ -135,6 +179,7 @@ const OrderTable = () => {
 
               <div>
                 <span className="text-[#806f65]">Total: </span>
+
                 <span className="font-medium text-[#403630]">
                   ₹{order.total || 0}
                 </span>
@@ -142,12 +187,13 @@ const OrderTable = () => {
 
               <div>
                 <span className="text-[#806f65]">Pickup: </span>
+
                 <span className="text-[#594c45]">
                   {order.pickupTime || "-"}
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </>

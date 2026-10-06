@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import uploadImage from "../../services/Cloudinary";
+
+const categories = ["Breakfast", "Snacks", "Main Course", "Beverages"];
 
 const MenuForm = ({
   initialData = null,
@@ -9,6 +11,7 @@ const MenuForm = ({
   submitLabel = "Add Dish",
 }) => {
   const fileInputRef = useRef(null);
+  const previewUrlRef = useRef(null);
 
   const [dish, setDish] = useState({
     name: initialData?.name || "",
@@ -27,7 +30,21 @@ const MenuForm = ({
 
   const [saving, setSaving] = useState(false);
 
-  const categories = ["Breakfast", "Snacks", "Main Course", "Beverages"];
+  // ==========================================
+  // CLEANUP IMAGE PREVIEW URL
+  // ==========================================
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
+
+  // ==========================================
+  // HANDLE INPUT CHANGE
+  // ==========================================
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -38,10 +55,19 @@ const MenuForm = ({
     }));
   };
 
+  // ==========================================
+  // HANDLE IMAGE CHANGE
+  // ==========================================
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
 
     if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file.");
       return;
     }
 
@@ -50,13 +76,25 @@ const MenuForm = ({
       return;
     }
 
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    previewUrlRef.current = previewUrl;
+
     setDish((previousDish) => ({
       ...previousDish,
       image: file,
     }));
 
-    setImagePreview(URL.createObjectURL(file));
+    setImagePreview(previewUrl);
   };
+
+  // ==========================================
+  // HANDLE SUBMIT
+  // ==========================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -233,7 +271,7 @@ const MenuForm = ({
           {/* Upload Area */}
           <button
             type="button"
-            onClick={() => fileInputRef.current.click()}
+            onClick={() => fileInputRef.current?.click()}
             className="flex h-28 flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#cbb9ac] bg-[#fffdfa] transition-colors hover:border-[#d15d2c] hover:bg-[#fff8f3]"
           >
             <span className="text-2xl text-[#8f7d72]">🖼️</span>

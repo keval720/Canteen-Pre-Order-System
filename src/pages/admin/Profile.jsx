@@ -2,8 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AdminLayout from "../../components/admin/AdminLayout";
+
 import uploadImage from "../../services/Cloudinary";
 import { logoutUser } from "../../services/authService";
+
+import { useAuth } from "../../context/AuthContext";
+
 import {
   subscribeToAdminProfile,
   saveAdminProfile,
@@ -11,6 +15,9 @@ import {
 
 const Profile = () => {
   const navigate = useNavigate();
+
+  const { user } = useAuth();
+
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState({
@@ -30,9 +37,15 @@ const Profile = () => {
   // ==========================================
 
   useEffect(() => {
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     const unsubscribe = subscribeToAdminProfile(
+      user.uid,
       (adminProfile) => {
         if (adminProfile) {
           setProfile({
@@ -45,8 +58,8 @@ const Profile = () => {
           setProfileImage(adminProfile.imageUrl || null);
         } else {
           setProfile({
-            name: "",
-            email: "",
+            name: user.displayName || "",
+            email: user.email || "",
             phone: "",
             imageUrl: "",
           });
@@ -68,7 +81,7 @@ const Profile = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user]);
 
   // ==========================================
   // INPUT CHANGE
@@ -114,6 +127,11 @@ const Profile = () => {
   // ==========================================
 
   const handleSaveChanges = async () => {
+    if (!user?.uid) {
+      alert("Admin authentication is required.");
+      return;
+    }
+
     if (!profile.name.trim() || !profile.email.trim()) {
       alert("Name and email are required.");
       return;
@@ -133,9 +151,10 @@ const Profile = () => {
         email: profile.email.trim(),
         phone: profile.phone.trim(),
         imageUrl,
+        role: "admin",
       };
 
-      await saveAdminProfile(updatedProfile);
+      await saveAdminProfile(user.uid, updatedProfile);
 
       setProfile({
         ...updatedProfile,
@@ -292,8 +311,8 @@ const Profile = () => {
                 name="email"
                 value={profile.email}
                 onChange={handleInputChange}
-                disabled={loading || saving}
                 className="h-11 w-full rounded-xl border border-[#e2d5ca] bg-white px-4 text-sm text-[#333] outline-none transition-colors focus:border-[#d15d2c] disabled:bg-[#f7f3ef]"
+                disabled
               />
             </div>
 

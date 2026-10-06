@@ -1,16 +1,29 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/icons/logo.png";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { profile, user } = useAuth();
 
   const { totalItems } = useCart();
 
   const isActive = (path) => {
     return location.pathname === path;
   };
+
+  const currentName = profile?.name || user?.displayName || "User";
+
+  const initials = currentName
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <header className="fixed left-0 top-0 z-50 h-[63px] w-full border-t-[2px] border-[#292929] border-b border-[#e5dfd8] bg-white shadow-[0_1px_5px_rgba(0,0,0,0.06)]">
@@ -113,7 +126,7 @@ const Navbar = () => {
                 : "bg-[#f1e9df] text-[#c95e2c] hover:bg-[#eaded1]"
             }`}
           >
-            PS
+            {initials}
           </button>
 
           {/* Logout */}

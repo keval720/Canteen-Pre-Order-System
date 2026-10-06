@@ -410,11 +410,22 @@ const ManageOrders = () => {
   // -----------------------------
 
   const filteredOrders = useMemo(() => {
-    if (activeFilter === "All") {
-      return orders;
-    }
+    const statusPriority = {
+      Pending: 1,
+      Preparing: 2,
+      "Waiting for Pickup": 3,
+      Delivered: 4,
+    };
 
-    return orders.filter((order) => order.status === activeFilter);
+    const filtered =
+      activeFilter === "All"
+        ? orders
+        : orders.filter((order) => order.status === activeFilter);
+
+    return [...filtered].sort(
+      (a, b) =>
+        (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99),
+    );
   }, [orders, activeFilter]);
 
   return (

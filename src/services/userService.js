@@ -6,12 +6,10 @@ import { db } from "../config/Firebase";
 // ADMIN
 // ==========================================
 
-const adminProfileRef = doc(db, "users", "admin");
-
 export const getAdminProfile = async (userId) => {
-  const adminProfileRef = doc(db, "users", userId);
+  const adminRef = doc(db, "admins", userId);
 
-  const snapshot = await getDoc(adminProfileRef);
+  const snapshot = await getDoc(adminRef);
 
   if (!snapshot.exists()) {
     return null;
@@ -27,9 +25,11 @@ export const getAdminProfile = async (userId) => {
 // REAL-TIME ADMIN PROFILE
 // ==========================================
 
-export const subscribeToAdminProfile = (onProfileChange, onError) => {
+export const subscribeToAdminProfile = (userId, onProfileChange, onError) => {
+  const adminRef = doc(db, "admins", userId);
+
   return onSnapshot(
-    adminProfileRef,
+    adminRef,
     (snapshot) => {
       if (!snapshot.exists()) {
         onProfileChange(null);
@@ -51,13 +51,15 @@ export const subscribeToAdminProfile = (onProfileChange, onError) => {
   );
 };
 
-export const saveAdminProfile = async (profileData) => {
-  await setDoc(adminProfileRef, profileData, {
+export const saveAdminProfile = async (userId, profileData) => {
+  const adminRef = doc(db, "admins", userId);
+
+  await setDoc(adminRef, profileData, {
     merge: true,
   });
 
   return {
-    id: "admin",
+    id: userId,
     ...profileData,
   };
 };

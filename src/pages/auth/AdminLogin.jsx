@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { loginUser } from "../../services/authService";
+import { loginUser, logoutUser } from "../../services/authService";
+import { getAdminProfile } from "../../services/userService";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -24,9 +25,20 @@ const AdminLogin = () => {
       setLoading(true);
       setError("");
 
-      await loginUser(email.trim(), password);
+      const loggedInUser = await loginUser(email.trim(), password);
 
-      navigate("/admin");
+      const adminProfile = await getAdminProfile(loggedInUser.uid);
+
+      if (!adminProfile) {
+        await logoutUser();
+
+        setError("This account is not authorized to access the admin panel.");
+
+        return;
+      }
+      console.log("login success");
+      
+      navigate("/admin/dashboard");
     } catch (error) {
       console.error("Admin Login Error:", error);
 
@@ -38,6 +50,10 @@ const AdminLogin = () => {
         setError("Incorrect password.");
       } else if (error.code === "auth/too-many-requests") {
         setError("Too many attempts. Please try again later.");
+      } else if (error.code === "auth/user-disabled") {
+        setError("This admin account has been disabled.");
+      } else if (error.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
       } else {
         setError("Unable to login. Please try again.");
       }
@@ -51,12 +67,10 @@ const AdminLogin = () => {
       <div className="w-full max-w-sm">
         {/* ================= BRANDING ================= */}
         <div className="mb-8 text-center">
-          {/* Logo */}
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#d15d2c] text-2xl font-semibold text-white">
             SC
           </div>
 
-          {/* Brand */}
           <h1 className="mt-4 text-3xl font-semibold text-white">
             Smart Canteen
           </h1>
@@ -78,7 +92,6 @@ const AdminLogin = () => {
               </label>
 
               <div className="relative">
-                {/* Icon */}
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                   ♙
                 </span>

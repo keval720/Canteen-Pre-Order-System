@@ -1,42 +1,97 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { useLocation, useNavigate } from "react-router-dom";
 
 import logo from "../../assets/icons/logo.png";
 
 import { logoutUser } from "../../services/authService";
-import { getAdminProfile } from "../../services/userService";
+import { subscribeToAdminProfile } from "../../services/userService";
+
+import { useAuth } from "../../context/AuthContext";
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { user } = useAuth();
+
   const [adminProfile, setAdminProfile] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // ==========================================
-  // LOAD ADMIN PROFILE
+  // MOBILE SCREEN DETECTION
   // ==========================================
 
   useEffect(() => {
-    const loadAdminProfile = async () => {
-      try {
-        const profile = await getAdminProfile();
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
 
-        if (profile) {
-          setAdminProfile(profile);
-        }
-      } catch (error) {
-        console.error("Load Admin Profile Error:", error);
-      }
+    const handleScreenChange = (event) => {
+      setIsMobile(event.matches);
     };
 
-    loadAdminProfile();
+    setIsMobile(mediaQuery.matches);
+
+    mediaQuery.addEventListener("change", handleScreenChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleScreenChange);
+    };
   }, []);
+
+  // ==========================================
+  // REAL-TIME ADMIN PROFILE
+  // ==========================================
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setAdminProfile(null);
+      return;
+    }
+
+    const unsubscribe = subscribeToAdminProfile(
+      user.uid,
+      (profile) => {
+        setAdminProfile(profile);
+      },
+      (error) => {
+        console.error("Load Admin Profile Error:", error);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.uid]);
+
+  // ==========================================
+  // NAVIGATION
+  // ==========================================
+
+  const handleNavigation = useCallback(
+    (path) => {
+      navigate(path);
+
+      // Collapse sidebar after navigation on mobile
+      if (isMobile) {
+        setCollapsed(true);
+      }
+    },
+    [navigate, isMobile, setCollapsed],
+  );
+
+  // ==========================================
+  // SIDEBAR TOGGLE
+  // ==========================================
+
+  const handleToggleSidebar = useCallback(() => {
+    setCollapsed((previousCollapsed) => !previousCollapsed);
+  }, [setCollapsed]);
 
   // ==========================================
   // ADMIN LOGOUT
   // ==========================================
 
-  const handleAdminLogout = async () => {
+  const handleAdminLogout = useCallback(async () => {
     try {
       await logoutUser();
 
@@ -46,15 +101,18 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     } catch (error) {
       console.error("Admin Logout Error:", error);
     }
-  };
+  }, [navigate]);
 
   // ==========================================
   // ACTIVE SCREEN
   // ==========================================
 
-  const isCurrentScreen = (path) => {
-    return location.pathname === path;
-  };
+  const isCurrentScreen = useCallback(
+    (path) => {
+      return location.pathname === path;
+    },
+    [location.pathname],
+  );
 
   // ==========================================
   // ADMIN NAME
@@ -66,24 +124,21 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
   // ADMIN INITIALS
   // ==========================================
 
-  const getInitials = (name) => {
-    if (!name) {
+  const adminInitials = useMemo(() => {
+    if (!adminName) {
       return "A";
     }
 
-    const nameParts = name.trim().split(/\s+/);
+    const nameParts = adminName.trim().split(/\s+/);
 
     if (nameParts.length === 1) {
       return nameParts[0].charAt(0).toUpperCase();
     }
 
     return (
-      nameParts[0].charAt(0) +
-      nameParts[nameParts.length - 1].charAt(0)
+      nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)
     ).toUpperCase();
-  };
-
-  const adminInitials = getInitials(adminName);
+  }, [adminName]);
 
   return (
     <>
@@ -106,7 +161,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           }`}
         >
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            type="button"
+            onClick={handleToggleSidebar}
             className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-[#d15d2c] font-semibold text-white shadow-md transition-colors hover:bg-[#b94f25]"
           >
             <img
@@ -118,13 +174,9 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
           {!collapsed && (
             <div className="ml-3">
-              <h1 className="text-base font-semibold">
-                Smart Canteen
-              </h1>
+              <h1 className="text-base font-semibold">Smart Canteen</h1>
 
-              <p className="text-[10px] text-gray-400">
-                Admin Panel
-              </p>
+              <p className="text-[10px] text-gray-400">Admin Panel</p>
             </div>
           )}
         </div>
@@ -138,16 +190,14 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             collapsed ? "hidden md:block" : "block"
           }`}
         >
-          <div className="flex items-center justify-center md:justify-start">
+          <div className="flex items-center md:justify-start">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#292524] text-xs font-semibold">
               {adminInitials}
             </div>
 
             {!collapsed && (
               <div className="ml-3 min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {adminName}
-                </p>
+                <p className="truncate text-sm font-semibold">{adminName}</p>
 
                 <p className="text-[10px] text-gray-400">
                   {adminProfile?.role || "Owner"}
@@ -168,11 +218,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         >
           {/* Dashboard */}
           <button
-            onClick={() => navigate("/admin")}
+            type="button"
+            onClick={() => handleNavigation("/admin/dashboard")}
             className={`flex w-full items-center rounded-xl px-3 py-3 transition-colors ${
               collapsed ? "justify-center" : "gap-3"
             } ${
-              isCurrentScreen("/admin")
+              isCurrentScreen("/admin/dashboard")
                 ? "bg-[#d15d2c] text-white"
                 : "text-gray-400 hover:bg-white/5 hover:text-white"
             }`}
@@ -182,9 +233,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             {!collapsed && (
               <span
                 className={`text-sm ${
-                  isCurrentScreen("/admin")
-                    ? "font-semibold"
-                    : ""
+                  isCurrentScreen("/admin/dashboard") ? "font-semibold" : ""
                 }`}
               >
                 Dashboard
@@ -194,7 +243,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
           {/* Menu */}
           <button
-            onClick={() => navigate("/admin/managemenu")}
+            type="button"
+            onClick={() => handleNavigation("/admin/managemenu")}
             className={`flex w-full items-center rounded-xl px-3 py-3 transition-colors ${
               collapsed ? "justify-center" : "gap-3"
             } ${
@@ -208,9 +258,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             {!collapsed && (
               <span
                 className={`text-sm ${
-                  isCurrentScreen("/admin/managemenu")
-                    ? "font-semibold"
-                    : ""
+                  isCurrentScreen("/admin/managemenu") ? "font-semibold" : ""
                 }`}
               >
                 Menu
@@ -220,7 +268,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
           {/* Orders */}
           <button
-            onClick={() => navigate("/admin/manageorders")}
+            type="button"
+            onClick={() => handleNavigation("/admin/manageorders")}
             className={`flex w-full items-center rounded-xl px-3 py-3 transition-colors ${
               collapsed ? "justify-center" : "gap-3"
             } ${
@@ -234,9 +283,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             {!collapsed && (
               <span
                 className={`text-sm ${
-                  isCurrentScreen("/admin/manageorders")
-                    ? "font-semibold"
-                    : ""
+                  isCurrentScreen("/admin/manageorders") ? "font-semibold" : ""
                 }`}
               >
                 Orders
@@ -246,7 +293,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
           {/* Reports */}
           <button
-            onClick={() => navigate("/admin/report")}
+            type="button"
+            onClick={() => handleNavigation("/admin/report")}
             className={`flex w-full items-center rounded-xl px-3 py-3 transition-colors ${
               collapsed ? "justify-center" : "gap-3"
             } ${
@@ -260,9 +308,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             {!collapsed && (
               <span
                 className={`text-sm ${
-                  isCurrentScreen("/admin/report")
-                    ? "font-semibold"
-                    : ""
+                  isCurrentScreen("/admin/report") ? "font-semibold" : ""
                 }`}
               >
                 Reports
@@ -272,7 +318,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
           {/* Profile */}
           <button
-            onClick={() => navigate("/admin/profile")}
+            type="button"
+            onClick={() => handleNavigation("/admin/profile")}
             className={`flex w-full items-center rounded-xl px-3 py-3 transition-colors ${
               collapsed ? "justify-center" : "gap-3"
             } ${
@@ -286,9 +333,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             {!collapsed && (
               <span
                 className={`text-sm ${
-                  isCurrentScreen("/admin/profile")
-                    ? "font-semibold"
-                    : ""
+                  isCurrentScreen("/admin/profile") ? "font-semibold" : ""
                 }`}
               >
                 Profile
@@ -307,6 +352,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           }`}
         >
           <button
+            type="button"
             onClick={handleAdminLogout}
             className={`flex w-full items-center rounded-xl px-3 py-3 text-red-400 hover:bg-red-500/10 ${
               collapsed ? "justify-center" : "gap-3"
@@ -314,9 +360,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           >
             <span className="shrink-0 text-lg">↪</span>
 
-            {!collapsed && (
-              <span className="text-sm">Logout</span>
-            )}
+            {!collapsed && <span className="text-sm">Logout</span>}
           </button>
         </div>
       </aside>
