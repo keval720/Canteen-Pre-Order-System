@@ -28,6 +28,9 @@ import OrderSuccess from "../pages/user/OrderSuccess";
 import UserRegister from "../pages/auth/UserRegister";
 
 import ProtectedRoute from "./ProtectedRoute";
+import FeedbackForm from "../components/user/FeedbackForm";
+
+import AdminRoute from "./AdminRoute";
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -72,20 +75,26 @@ const AppRoutes = () => {
             <Route path="/user/payment" element={<Payment />} />
             <Route path="/user/order-success" element={<OrderSuccess />} />
             <Route path="/user/order-history" element={<OrderHistory />} />
+            <Route
+              path="/user/order-history/feedback-form"
+              element={<FeedbackForm />}
+            />
           </Route>
 
           {/* Admin */}
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/managemenu" element={<ManageMenu />} />
-          <Route path="/admin/manageorders" element={<ManageOrders />} />
-          <Route path="/admin/report" element={<Report />} />
-          <Route path="/admin/profile" element={<Profile />} />
-          <Route path="/admin/managemenu/add-dish" element={<AddDish />} />
-          <Route
-            path="/admin/managemenu/edit-dish/:id"
-            element={<EditDish />}
-          />
-          <Route path="/admin/report/feedbacks" element={<Feedback />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<Dashboard />} />
+            <Route path="/admin/managemenu" element={<ManageMenu />} />
+            <Route path="/admin/manageorders" element={<ManageOrders />} />
+            <Route path="/admin/report" element={<Report />} />
+            <Route path="/admin/profile" element={<Profile />} />
+            <Route path="/admin/managemenu/add-dish" element={<AddDish />} />
+            <Route
+              path="/admin/managemenu/edit-dish/:id"
+              element={<EditDish />}
+            />
+            <Route path="/admin/report/feedbacks" element={<Feedback />} />
+          </Route>
         </Routes>
       </motion.div>
     </AnimatePresence>

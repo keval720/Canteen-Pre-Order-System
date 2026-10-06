@@ -8,7 +8,9 @@ import { db } from "../config/Firebase";
 
 const adminProfileRef = doc(db, "users", "admin");
 
-export const getAdminProfile = async () => {
+export const getAdminProfile = async (userId) => {
+  const adminProfileRef = doc(db, "users", userId);
+
   const snapshot = await getDoc(adminProfileRef);
 
   if (!snapshot.exists()) {

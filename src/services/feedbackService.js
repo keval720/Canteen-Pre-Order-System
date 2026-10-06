@@ -5,6 +5,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore";
 
 import { db } from "../config/Firebase";
@@ -18,6 +19,27 @@ export const getFeedbacks = async () => {
     id: document.id,
     ...document.data(),
   }));
+};
+
+export const subscribeToFeedbacks = (onFeedbacksChange, onError) => {
+  return onSnapshot(
+    feedbackCollection,
+    (snapshot) => {
+      const feedbacks = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }));
+
+      onFeedbacksChange(feedbacks);
+    },
+    (error) => {
+      console.error("Feedback Snapshot Error:", error);
+
+      if (onError) {
+        onError(error);
+      }
+    },
+  );
 };
 
 export const addFeedback = async (feedbackData) => {

@@ -1,46 +1,73 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 
 import AdminLayout from "../../components/admin/AdminLayout";
-import { getFeedbacks } from "../../services/feedbackService";
+import { subscribeToFeedbacks } from "../../services/feedbackService";
 
 const Feedback = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
 
+  // ==========================================
+  // REAL-TIME FEEDBACK LISTENER
+  // ==========================================
+
   useEffect(() => {
-    const loadFeedbacks = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const firebaseFeedbacks = await getFeedbacks();
-
+    const unsubscribe = subscribeToFeedbacks(
+      (firebaseFeedbacks) => {
         setFeedbacks(firebaseFeedbacks);
-      } catch (error) {
-        console.error("Load Feedback Error:", error);
-      } finally {
         setLoading(false);
-      }
-    };
+      },
+      (error) => {
+        console.error("Feedback Listener Error:", error);
 
-    loadFeedbacks();
+        setFeedbacks([]);
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const filteredFeedbacks = feedbacks.filter((feedback) => {
-    if (filter === "All") return true;
+  // ==========================================
+  // FILTER FEEDBACK
+  // ==========================================
 
-    return feedback.rating === Number(filter);
-  });
+  const filteredFeedbacks = useMemo(() => {
+    if (filter === "All") {
+      return feedbacks;
+    }
 
-  const averageRating =
-    feedbacks.length > 0
-      ? (
-          feedbacks.reduce(
-            (total, feedback) => total + Number(feedback.rating || 0),
-            0,
-          ) / feedbacks.length
-        ).toFixed(1)
-      : "0.0";
+    return feedbacks.filter(
+      (feedback) => Number(feedback.rating || 0) === Number(filter),
+    );
+  }, [feedbacks, filter]);
+
+  // ==========================================
+  // AVERAGE RATING
+  // ==========================================
+
+  const averageRating = useMemo(() => {
+    if (feedbacks.length === 0) {
+      return "0.0";
+    }
+
+    const totalRating = feedbacks.reduce(
+      (total, feedback) => total + Number(feedback.rating || 0),
+      0,
+    );
+
+    return (totalRating / feedbacks.length).toFixed(1);
+  }, [feedbacks]);
+
+  // ==========================================
+  // RENDER STARS
+  // ==========================================
 
   const renderStars = (rating) => {
     return (
@@ -73,7 +100,16 @@ const Feedback = () => {
           {/* Summary */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Average Rating */}
-            <div className="rounded-2xl border border-[#eadfd6] bg-white p-5">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: 0.45,
+                delay: 0,
+                ease: "easeOut",
+              }}
+              className="rounded-2xl border border-[#eadfd6] bg-white p-5"
+            >
               <div className="flex items-center gap-4">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#fff6d8] text-xl">
                   ⭐
@@ -87,10 +123,19 @@ const Feedback = () => {
                   <p className="mt-1 text-sm text-[#8c786d]">Average Rating</p>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Total Feedback */}
-            <div className="rounded-2xl border border-[#eadfd6] bg-white p-5">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: 0.45,
+                delay: 0.07,
+                ease: "easeOut",
+              }}
+              className="rounded-2xl border border-[#eadfd6] bg-white p-5"
+            >
               <div className="flex items-center gap-4">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f4ece4] text-xl">
                   💬
@@ -104,7 +149,7 @@ const Feedback = () => {
                   <p className="mt-1 text-sm text-[#8c786d]">Total Feedback</p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Filters */}
@@ -112,6 +157,7 @@ const Feedback = () => {
             {["All", "5", "4", "3", "2", "1"].map((item) => (
               <button
                 key={item}
+                type="button"
                 onClick={() => setFilter(item)}
                 className={`rounded-xl px-4 py-2 text-xs font-medium transition ${
                   filter === item
@@ -132,9 +178,22 @@ const Feedback = () => {
               </div>
             ) : (
               <>
-                {filteredFeedbacks.map((feedback) => (
-                  <div
+                {filteredFeedbacks.map((feedback, index) => (
+                  <motion.div
                     key={feedback.id}
+                    initial={{
+                      opacity: 0,
+                      scale: 0.98,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                    }}
+                    transition={{
+                      duration: 0.45,
+                      delay: index * 0.07,
+                      ease: "easeOut",
+                    }}
                     className="rounded-2xl border border-[#eadfd6] bg-white p-5"
                   >
                     {/* Top */}
@@ -159,7 +218,7 @@ const Feedback = () => {
                         {renderStars(Number(feedback.rating || 0))}
 
                         <span className="text-xs text-[#8c786d]">
-                          {feedback.rating}/5
+                          {feedback.rating || 0}/5
                         </span>
                       </div>
                     </div>
@@ -170,7 +229,7 @@ const Feedback = () => {
                         {feedback.message}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
 
                 {/* Empty State */}

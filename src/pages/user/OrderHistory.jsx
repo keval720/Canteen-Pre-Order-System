@@ -3,6 +3,8 @@ import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../../components/common/Navbar";
+import FeedbackForm from "../../components/user/FeedbackForm";
+
 import { useOrders } from "../../context/OrderContext";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
@@ -16,12 +18,33 @@ const OrderHistory = () => {
 
   const [reorderingOrderId, setReorderingOrderId] = useState(null);
 
+  // ==========================================
+  // FEEDBACK
+  // ==========================================
+
+  const [feedbackOrder, setFeedbackOrder] = useState(null);
+  const [submittedFeedbackOrderIds, setSubmittedFeedbackOrderIds] = useState(
+    [],
+  );
+
   const userOrders = useMemo(() => {
     if (!user) {
       return [];
     }
 
-    return orders.filter((order) => order.userId === user.uid);
+    return [...orders]
+      .filter((order) => order.userId === user.uid)
+      .sort((a, b) => {
+        const timeA = a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : new Date(a.createdAt || 0).getTime();
+
+        const timeB = b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : new Date(b.createdAt || 0).getTime();
+
+        return timeB - timeA;
+      });
   }, [orders, user]);
 
   const getStatusStyles = (status) => {
@@ -96,6 +119,36 @@ const OrderHistory = () => {
     });
   };
 
+  // ==========================================
+  // OPEN FEEDBACK
+  // ==========================================
+
+  const handleOpenFeedback = (order) => {
+    if (order.status !== "Delivered") {
+      return;
+    }
+
+    if (submittedFeedbackOrderIds.includes(order.id)) {
+      return;
+    }
+
+    setFeedbackOrder(order);
+  };
+
+  // ==========================================
+  // FEEDBACK SUBMITTED
+  // ==========================================
+
+  const handleFeedbackSubmitted = () => {
+    if (!feedbackOrder) {
+      return;
+    }
+
+    setSubmittedFeedbackOrderIds((previous) => [...previous, feedbackOrder.id]);
+
+    setFeedbackOrder(null);
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#faf7f2]">
       {/* Navbar */}
@@ -114,6 +167,13 @@ const OrderHistory = () => {
             const statusStyles = getStatusStyles(order.status);
 
             const isReordering = reorderingOrderId === order.id;
+
+            const hasSubmittedFeedback = submittedFeedbackOrderIds.includes(
+              order.id,
+            );
+
+            const canGiveFeedback =
+              order.status === "Delivered" && !hasSubmittedFeedback;
 
             return (
               <motion.div
@@ -162,9 +222,9 @@ const OrderHistory = () => {
 
                 {/* Items */}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {order.items?.map((item, index) => (
+                  {order.items?.map((item, itemIndex) => (
                     <span
-                      key={`${order.id}-${index}`}
+                      key={`${order.id}-${itemIndex}`}
                       className="max-w-full rounded-full bg-[#f0eae2] px-2.5 py-1 text-[10px] text-[#806b60]"
                     >
                       {item.name} ×{item.quantity}
@@ -176,25 +236,53 @@ const OrderHistory = () => {
                 <div className="my-3 h-px bg-[#e9dfd6]" />
 
                 {/* Bottom */}
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-sm font-bold text-[#171717]">
                     ₹{order.total}
                   </span>
 
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleReorder(order);
-                    }}
-                    disabled={reorderingOrderId !== null}
-                    className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#d55c29] transition hover:bg-[#e8ded3] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <span className="text-base">
-                      {isReordering ? "..." : "↻"}
-                    </span>
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {/* Reorder */}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleReorder(order);
+                      }}
+                      disabled={reorderingOrderId !== null}
+                      className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#d55c29] transition hover:bg-[#e8ded3] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <span className="text-base">
+                        {isReordering ? "..." : "↻"}
+                      </span>
 
-                    {isReordering ? "Adding..." : "Reorder"}
-                  </button>
+                      {isReordering ? "Adding..." : "Reorder"}
+                    </button>
+
+                    {/* Give Feedback */}
+                    {canGiveFeedback && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenFeedback(order);
+                        }}
+                        className="flex shrink-0 items-center gap-1 rounded-xl bg-[#d15d2c] px-3 py-1.5 text-[10px] font-medium text-white transition hover:bg-[#b95222]"
+                      >
+                        <span className="text-sm">★</span>
+                        Give Feedback
+                      </button>
+                    )}
+
+                    {/* Feedback Submitted */}
+                    {hasSubmittedFeedback && (
+                      <span className="flex shrink-0 items-center gap-1 rounded-xl bg-[#f0fff7] px-3 py-1.5 text-[10px] font-medium text-[#27a467]">
+                        <span>✓</span>
+                        Feedback Submitted
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
@@ -215,6 +303,7 @@ const OrderHistory = () => {
             </p>
 
             <button
+              type="button"
               onClick={() => navigate("/user/menu")}
               className="mt-5 rounded-xl bg-[#cf632e] px-5 py-2.5 text-xs font-medium text-white transition hover:bg-[#b95222]"
             >
@@ -223,6 +312,25 @@ const OrderHistory = () => {
           </div>
         )}
       </main>
+
+      {/* Feedback Modal */}
+      {feedbackOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm"
+          onClick={() => setFeedbackOrder(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-[500px] overflow-y-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <FeedbackForm
+              order={feedbackOrder}
+              onSubmitted={handleFeedbackSubmitted}
+              onCancel={() => setFeedbackOrder(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

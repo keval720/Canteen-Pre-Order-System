@@ -22,6 +22,9 @@ const Payment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // NEW: Track Razorpay readiness
+  const [razorpayReady, setRazorpayReady] = useState(false);
+
   const generatePickupCode = () => {
     const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -34,26 +37,60 @@ const Payment = () => {
     return code;
   };
 
+  // Razorpay script loading
   useEffect(() => {
     const scriptSrc = "https://checkout.razorpay.com/v1/checkout.js";
 
-    const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
-
-    if (existingScript) {
+    // If Razorpay is already loaded
+    if (window.Razorpay) {
+      setRazorpayReady(true);
       return;
     }
 
+    const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+
+    const handleLoad = () => {
+      if (window.Razorpay) {
+        setRazorpayReady(true);
+        setError("");
+      } else {
+        setRazorpayReady(false);
+        setError(
+          "Payment gateway failed to initialize. Please refresh and try again.",
+        );
+      }
+    };
+
+    const handleError = () => {
+      setRazorpayReady(false);
+      setError("Unable to load payment gateway. Please refresh and try again.");
+    };
+
+    // Script already exists but is still loading
+    if (existingScript) {
+      existingScript.addEventListener("load", handleLoad);
+      existingScript.addEventListener("error", handleError);
+
+      return () => {
+        existingScript.removeEventListener("load", handleLoad);
+        existingScript.removeEventListener("error", handleError);
+      };
+    }
+
+    // Create Razorpay script
     const script = document.createElement("script");
 
     script.src = scriptSrc;
     script.async = true;
 
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+
     document.body.appendChild(script);
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
     };
   }, []);
 
@@ -65,8 +102,11 @@ const Payment = () => {
     const orderItems = cartItems.map((item) => ({
       id: item.id,
       name: item.name,
-      quantity: Number(item.quantity || 0),
+      description: item.description || "",
+      category: item.category || "",
       price: Number(item.price || 0),
+      image: item.image || item.imageUrl || "",
+      quantity: Number(item.quantity || 0),
       preparationTime: Number(item.preparationTime || 0),
       batchable: item.batchable === true,
     }));
@@ -136,8 +176,11 @@ const Payment = () => {
         throw new Error("Your cart is empty.");
       }
 
-      if (!window.Razorpay) {
-        throw new Error("Payment gateway is still loading. Please try again.");
+      // NEW: Don't allow payment before Razorpay is ready
+      if (!razorpayReady || !window.Razorpay) {
+        throw new Error(
+          "Payment gateway is still loading. Please wait a moment.",
+        );
       }
 
       const createOrderResponse = await fetch(

@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 
 import { db } from "../config/Firebase";
+import { subscribeToMenu } from "../services/menuService";
 import { useAuth } from "./AuthContext";
 
 const CartContext = createContext(null);
@@ -137,16 +138,51 @@ export const CartProvider = ({ children }) => {
       throw new Error("This order has no items to reorder.");
     }
 
+    // Get current menu data once.
+    const menuItems = await new Promise((resolve, reject) => {
+      let unsubscribe;
+
+      unsubscribe = subscribeToMenu(
+        (firebaseMenu) => {
+          resolve(firebaseMenu);
+
+          if (unsubscribe) {
+            unsubscribe();
+          }
+        },
+        (error) => {
+          reject(error);
+
+          if (unsubscribe) {
+            unsubscribe();
+          }
+        },
+      );
+    });
+
     const updatedCart = [...cartItems];
 
     orderItems.forEach((orderItem) => {
+      const menuItem = menuItems.find((item) => item.id === orderItem.id);
+
       const existingItemIndex = updatedCart.findIndex(
         (cartItem) => cartItem.id === orderItem.id,
       );
 
+      /*
+        Prefer the image already stored in the order.
+        If it does not exist, use the current menu imageUrl.
+      */
+      const image =
+        orderItem.image || orderItem.imageUrl || menuItem?.imageUrl || "";
+
       if (existingItemIndex !== -1) {
         updatedCart[existingItemIndex] = {
           ...updatedCart[existingItemIndex],
+
+          // Update image if the current cart item does not have one.
+          image: updatedCart[existingItemIndex].image || image,
+
           quantity:
             Number(updatedCart[existingItemIndex].quantity || 0) +
             Number(orderItem.quantity || 0),
@@ -154,14 +190,17 @@ export const CartProvider = ({ children }) => {
       } else {
         updatedCart.push({
           id: orderItem.id,
-          name: orderItem.name,
-          description: orderItem.description || "",
-          category: orderItem.category || "",
-          price: Number(orderItem.price || 0),
-          image: orderItem.image || orderItem.imageUrl || "",
+          name: orderItem.name || menuItem?.name || "",
+          description: orderItem.description || menuItem?.description || "",
+          category: orderItem.category || menuItem?.category || "",
+          price: Number(orderItem.price ?? menuItem?.price ?? 0),
+          image,
           quantity: Number(orderItem.quantity || 1),
-          preparationTime: Number(orderItem.preparationTime || 0),
-          batchable: orderItem.batchable === true,
+          preparationTime: Number(
+            orderItem.preparationTime ?? menuItem?.preparationTime ?? 0,
+          ),
+          batchable:
+            orderItem.batchable === true || menuItem?.batchable === true,
         });
       }
     });

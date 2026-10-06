@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { motion } from "motion/react";
 
 import AdminLayout from "../../components/admin/AdminLayout";
 import { useOrders } from "../../context/OrderContext";
@@ -181,7 +182,6 @@ const ManageOrders = () => {
             secondItem.batchable === true
           ) {
             const firstQuantity = Number(firstItem.quantity || 0);
-
             const secondQuantity = Number(secondItem.quantity || 0);
 
             const totalQuantity = firstQuantity + secondQuantity;
@@ -252,13 +252,11 @@ const ManageOrders = () => {
 
     if (!enteredCode) {
       setPickupError("Please enter the pickup code.");
-
       return;
     }
 
     if (enteredCode.length !== 6) {
       setPickupError("Pickup code must contain 6 characters.");
-
       return;
     }
 
@@ -268,25 +266,21 @@ const ManageOrders = () => {
 
     if (!matchedOrder) {
       setPickupError("Invalid pickup code. No matching order found.");
-
       return;
     }
 
     if (matchedOrder.paymentStatus !== "paid") {
       setPickupError("This order does not have a successful payment.");
-
       return;
     }
 
     if (matchedOrder.pickupStatus === "collected") {
       setPickupError("This order has already been collected.");
-
       return;
     }
 
     if (matchedOrder.status !== "Waiting for Pickup") {
       setPickupError("This order is not ready for pickup yet.");
-
       return;
     }
 
@@ -333,18 +327,15 @@ const ManageOrders = () => {
     setAlternativeOrder(null);
 
     const enteredPaymentId = paymentId.trim();
-
     const enteredEmail = customerEmail.trim().toLowerCase();
 
     if (!enteredPaymentId) {
       setAlternativeError("Please enter the payment ID.");
-
       return;
     }
 
     if (!enteredEmail) {
       setAlternativeError("Please enter the customer's email.");
-
       return;
     }
 
@@ -358,25 +349,21 @@ const ManageOrders = () => {
       setAlternativeError(
         "No matching paid order found. Please check the payment ID and email.",
       );
-
       return;
     }
 
     if (matchedOrder.paymentStatus !== "paid") {
       setAlternativeError("This order does not have a successful payment.");
-
       return;
     }
 
     if (matchedOrder.pickupStatus === "collected") {
       setAlternativeError("This order has already been collected.");
-
       return;
     }
 
     if (matchedOrder.status !== "Waiting for Pickup") {
       setAlternativeError("This order is not ready for pickup yet.");
-
       return;
     }
 
@@ -418,10 +405,17 @@ const ManageOrders = () => {
     }
   };
 
-  const filteredOrders =
-    activeFilter === "All"
-      ? orders
-      : orders.filter((order) => order.status === activeFilter);
+  // -----------------------------
+  // Filtered Orders
+  // -----------------------------
+
+  const filteredOrders = useMemo(() => {
+    if (activeFilter === "All") {
+      return orders;
+    }
+
+    return orders.filter((order) => order.status === activeFilter);
+  }, [orders, activeFilter]);
 
   return (
     <AdminLayout>
@@ -784,9 +778,16 @@ const ManageOrders = () => {
               </div>
 
               <div className="mt-4 space-y-3">
-                {batchSuggestions.map((suggestion) => (
-                  <div
+                {batchSuggestions.map((suggestion, index) => (
+                  <motion.div
                     key={suggestion.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      duration: 0.45,
+                      delay: index * 0.07,
+                      ease: "easeOut",
+                    }}
                     className="rounded-xl border border-[#eadfd6] bg-[#fffaf6] p-4"
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -840,7 +841,7 @@ const ManageOrders = () => {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -877,9 +878,16 @@ const ManageOrders = () => {
 
           {/* Orders */}
           <div className="mt-5 space-y-3">
-            {filteredOrders.map((order) => (
-              <div
+            {filteredOrders.map((order, index) => (
+              <motion.div
                 key={order.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
                 className="rounded-2xl border border-[#e8dbd0] bg-white px-4 py-4 sm:px-5"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -956,7 +964,7 @@ const ManageOrders = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
 
             {filteredOrders.length === 0 && (

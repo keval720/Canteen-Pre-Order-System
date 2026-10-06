@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 
 import AdminLayout from "../../components/admin/AdminLayout";
 import { useOrders } from "../../context/OrderContext";
-import { getMenu } from "../../services/menuService";
+import { subscribeToMenu } from "../../services/menuService";
 
 const Dashboard = () => {
   const { orders, loading: ordersLoading } = useOrders();
@@ -10,36 +11,42 @@ const Dashboard = () => {
   const [menu, setMenu] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
 
+  // Real-time menu listener
   useEffect(() => {
-    const loadMenu = async () => {
-      try {
-        setMenuLoading(true);
+    setMenuLoading(true);
 
-        const firebaseMenu = await getMenu();
-
+    const unsubscribe = subscribeToMenu(
+      (firebaseMenu) => {
         setMenu(firebaseMenu);
-      } catch (error) {
-        console.error("Dashboard Menu Error:", error);
-      } finally {
         setMenuLoading(false);
-      }
-    };
+      },
+      (error) => {
+        console.error("Dashboard Menu Snapshot Error:", error);
+        setMenuLoading(false);
+      },
+    );
 
-    loadMenu();
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const pendingOrders = orders.filter((order) => order.status === "Pending");
+  // Derived order data
+  const pendingOrders = useMemo(() => {
+    return orders.filter((order) => order.status === "Pending");
+  }, [orders]);
 
-  const completedOrders = orders.filter(
-    (order) => order.status === "Delivered",
-  );
+  const completedOrders = useMemo(() => {
+    return orders.filter((order) => order.status === "Delivered");
+  }, [orders]);
 
-  const totalSales = orders.reduce(
-    (total, order) => total + Number(order.total || 0),
-    0,
-  );
+  const totalSales = useMemo(() => {
+    return orders.reduce((total, order) => total + Number(order.total || 0), 0);
+  }, [orders]);
 
-  const recentOrders = [...orders].slice(-4).reverse();
+  const recentOrders = useMemo(() => {
+    return [...orders].slice(-4).reverse();
+  }, [orders]);
 
   const formatItems = (items) => {
     if (!items || items.length === 0) {
@@ -108,65 +115,68 @@ const Dashboard = () => {
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Total Orders */}
-            <div className="rounded-2xl border border-blue-100 bg-white p-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                📋
-              </div>
+            {[
+              {
+                icon: "📋",
+                value: ordersLoading ? "..." : orders.length,
+                title: "Total Orders",
+                description: "All orders",
+                border: "border-blue-100",
+                iconBg: "bg-blue-50",
+              },
+              {
+                icon: "🕐",
+                value: ordersLoading ? "..." : pendingOrders.length,
+                title: "Pending",
+                description: "Needs attention",
+                border: "border-yellow-100",
+                iconBg: "bg-yellow-50",
+              },
+              {
+                icon: "☑️",
+                value: ordersLoading ? "..." : completedOrders.length,
+                title: "Completed",
+                description: "Delivered orders",
+                border: "border-green-100",
+                iconBg: "bg-green-50",
+              },
+              {
+                icon: "💰",
+                value: ordersLoading ? "..." : `₹${totalSales}`,
+                title: "Total Sales",
+                description: "From all orders",
+                border: "border-purple-100",
+                iconBg: "bg-purple-50",
+              },
+            ].map((card, index) => (
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.07,
+                  ease: "easeOut",
+                }}
+                className={`rounded-2xl border ${card.border} bg-white p-5`}
+              >
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconBg} text-xl`}
+                >
+                  {card.icon}
+                </div>
 
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                {ordersLoading ? "..." : orders.length}
-              </h2>
+                <h2 className="mt-4 text-2xl font-semibold text-gray-900">
+                  {card.value}
+                </h2>
 
-              <p className="mt-1 text-sm text-[#a67867]">Total Orders</p>
+                <p className="mt-1 text-sm text-[#a67867]">{card.title}</p>
 
-              <p className="mt-1 text-xs text-[#c49b8c]">All orders</p>
-            </div>
-
-            {/* Pending */}
-            <div className="rounded-2xl border border-yellow-100 bg-white p-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-50 text-xl">
-                🕐
-              </div>
-
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                {ordersLoading ? "..." : pendingOrders.length}
-              </h2>
-
-              <p className="mt-1 text-sm text-[#a67867]">Pending</p>
-
-              <p className="mt-1 text-xs text-[#c49b8c]">Needs attention</p>
-            </div>
-
-            {/* Completed */}
-            <div className="rounded-2xl border border-green-100 bg-white p-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-xl">
-                ☑️
-              </div>
-
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                {ordersLoading ? "..." : completedOrders.length}
-              </h2>
-
-              <p className="mt-1 text-sm text-[#a67867]">Completed</p>
-
-              <p className="mt-1 text-xs text-[#c49b8c]">Delivered orders</p>
-            </div>
-
-            {/* Total Sales */}
-            <div className="rounded-2xl border border-purple-100 bg-white p-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-xl">
-                💰
-              </div>
-
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                {ordersLoading ? "..." : `₹${totalSales}`}
-              </h2>
-
-              <p className="mt-1 text-sm text-[#a67867]">Total Sales</p>
-
-              <p className="mt-1 text-xs text-[#c49b8c]">From all orders</p>
-            </div>
+                <p className="mt-1 text-xs text-[#c49b8c]">
+                  {card.description}
+                </p>
+              </motion.div>
+            ))}
           </div>
 
           {/* Recent Orders */}
@@ -185,7 +195,6 @@ const Dashboard = () => {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px]">
-                {/* Table Header */}
                 <thead>
                   <tr className="bg-[#faf7f3] text-left">
                     <th className="px-5 py-3 text-xs font-medium text-[#a67867]">
@@ -214,7 +223,6 @@ const Dashboard = () => {
                   </tr>
                 </thead>
 
-                {/* Table Body */}
                 <tbody>
                   {ordersLoading || recentOrders.length === 0 ? (
                     <tr>
@@ -278,12 +286,10 @@ const Dashboard = () => {
 
           {/* Menu Availability Today */}
           <div className="mt-6 rounded-2xl border border-[#eadfd5] bg-white p-5">
-            {/* Heading */}
             <h2 className="mb-4 text-base font-semibold text-gray-900">
               Menu Availability Today
             </h2>
 
-            {/* Menu Grid */}
             {menuLoading ? (
               <div className="py-8 text-center text-sm text-[#8f7769]">
                 Loading menu...
@@ -294,9 +300,16 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {menu.map((item) => (
-                  <div
+                {menu.map((item, index) => (
+                  <motion.div
                     key={item.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      duration: 0.45,
+                      delay: index * 0.07,
+                      ease: "easeOut",
+                    }}
                     className="flex items-center justify-between rounded-xl bg-[#faf7f3] px-3 py-2"
                   >
                     <span className="text-xs text-gray-800">{item.name}</span>
@@ -312,7 +325,7 @@ const Dashboard = () => {
                         Unavailable
                       </span>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}

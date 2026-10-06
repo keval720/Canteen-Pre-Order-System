@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import AdminLayout from "../../components/admin/AdminLayout";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import {
   subscribeToMenu,
@@ -8,12 +8,15 @@ import {
 } from "../../services/menuService";
 import { Pencil, Trash2 } from "lucide-react";
 
+import AdminLayout from "../../components/admin/AdminLayout";
+
 const ManageMenu = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [dishes, setDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingDishId, setUpdatingDishId] = useState(null);
 
   const navigate = useNavigate();
 
@@ -49,7 +52,13 @@ const ManageMenu = () => {
   // ==========================================
 
   const toggleStatus = async (id, currentStatus) => {
+    if (updatingDishId) {
+      return;
+    }
+
     try {
+      setUpdatingDishId(id);
+
       const newStatus = !currentStatus;
 
       await updateMenuItem(id, {
@@ -58,6 +67,8 @@ const ManageMenu = () => {
     } catch (error) {
       console.error("Update Status Error:", error);
       alert("Failed to update dish status.");
+    } finally {
+      setUpdatingDishId(null);
     }
   };
 
@@ -66,6 +77,10 @@ const ManageMenu = () => {
   // ==========================================
 
   const deleteDish = async (id) => {
+    if (updatingDishId) {
+      return;
+    }
+
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this dish?",
     );
@@ -75,10 +90,14 @@ const ManageMenu = () => {
     }
 
     try {
+      setUpdatingDishId(id);
+
       await deleteMenuItem(id);
     } catch (error) {
       console.error("Delete Dish Error:", error);
       alert("Failed to delete dish.");
+    } finally {
+      setUpdatingDishId(null);
     }
   };
 
@@ -86,20 +105,28 @@ const ManageMenu = () => {
   // FILTER DISHES
   // ==========================================
 
-  const filteredDishes = dishes.filter((dish) => {
+  const filteredDishes = useMemo(() => {
     const searchValue = search.toLowerCase().trim();
 
-    const matchesSearch =
-      dish.name?.toLowerCase().includes(searchValue) ||
-      dish.category?.toLowerCase().includes(searchValue);
+    return dishes.filter((dish) => {
+      const matchesSearch =
+        dish.name?.toLowerCase().includes(searchValue) ||
+        dish.category?.toLowerCase().includes(searchValue);
 
-    const matchesCategory =
-      activeCategory === "All" || dish.category === activeCategory;
+      const matchesCategory =
+        activeCategory === "All" || dish.category === activeCategory;
 
-    return matchesSearch && matchesCategory;
-  });
+      return matchesSearch && matchesCategory;
+    });
+  }, [dishes, search, activeCategory]);
 
-  const availableCount = dishes.filter((dish) => dish.status === true).length;
+  // ==========================================
+  // AVAILABLE DISH COUNT
+  // ==========================================
+
+  const availableCount = useMemo(() => {
+    return dishes.filter((dish) => dish.status === true).length;
+  }, [dishes]);
 
   return (
     <AdminLayout>
@@ -192,8 +219,7 @@ const ManageMenu = () => {
           {!loading && !error && (
             <>
               {/* ==========================================
-                  TABLE
-                  Shows only at 1024px+
+                  DESKTOP TABLE
               ========================================== */}
 
               <div className="mt-5 hidden overflow-hidden rounded-2xl border border-[#eadfd6] bg-white lg:block">
@@ -207,9 +233,16 @@ const ManageMenu = () => {
                 </div>
 
                 {/* Table Rows */}
-                {filteredDishes.map((dish) => (
-                  <div
+                {filteredDishes.map((dish, index) => (
+                  <motion.div
                     key={dish.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      duration: 0.45,
+                      delay: index * 0.07,
+                      ease: "easeOut",
+                    }}
                     className="grid min-h-[64px] grid-cols-[minmax(220px,3fr)_1.3fr_.7fr_1fr_1.8fr] items-center border-t border-[#eee4dc] px-4 xl:px-5"
                   >
                     {/* Dish */}
@@ -274,30 +307,37 @@ const ManageMenu = () => {
                         onClick={() =>
                           navigate(`/admin/managemenu/edit-dish/${dish.id}`)
                         }
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e4d8ce] text-[#695950] transition-colors hover:bg-[#f7f1eb]"
+                        disabled={updatingDishId === dish.id}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e4d8ce] text-[#695950] transition-colors hover:bg-[#f7f1eb] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Pencil size={15} strokeWidth={1.8} />
                       </button>
 
                       <button
                         onClick={() => toggleStatus(dish.id, dish.status)}
-                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        disabled={updatingDishId !== null}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                           dish.status
                             ? "border-[#ffd1d1] text-[#ef5350] hover:bg-[#fff4f4]"
                             : "border-[#bcebd5] text-[#15966a] hover:bg-[#effcf6]"
                         }`}
                       >
-                        {dish.status ? "Disable" : "Enable"}
+                        {updatingDishId === dish.id
+                          ? "Updating..."
+                          : dish.status
+                            ? "Disable"
+                            : "Enable"}
                       </button>
 
                       <button
                         onClick={() => deleteDish(dish.id)}
-                        className="px-1 text-sm text-[#ff5d5d] transition-colors hover:text-[#d93636]"
+                        disabled={updatingDishId !== null}
+                        className="px-1 text-sm text-[#ff5d5d] transition-colors hover:text-[#d93636] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Trash2 size={16} strokeWidth={1.8} />
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
 
                 {filteredDishes.length === 0 && (
@@ -309,13 +349,19 @@ const ManageMenu = () => {
 
               {/* ==========================================
                   RESPONSIVE CARDS
-                  Shows below 1024px
               ========================================== */}
 
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-                {filteredDishes.map((dish) => (
-                  <div
+                {filteredDishes.map((dish, index) => (
+                  <motion.div
                     key={dish.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      duration: 0.45,
+                      delay: index * 0.07,
+                      ease: "easeOut",
+                    }}
                     className="rounded-2xl border border-[#eadfd6] bg-white p-4"
                   >
                     {/* Dish Information */}
@@ -350,7 +396,8 @@ const ManageMenu = () => {
                             onClick={() =>
                               navigate(`/admin/managemenu/edit-dish/${dish.id}`)
                             }
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e4d8ce] text-[#695950] hover:bg-[#f7f1eb]"
+                            disabled={updatingDishId === dish.id}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e4d8ce] text-[#695950] hover:bg-[#f7f1eb] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Pencil size={15} strokeWidth={1.8} />
                           </button>
@@ -403,23 +450,29 @@ const ManageMenu = () => {
                     <div className="mt-4 flex items-center gap-2 border-t border-[#eee4dc] pt-3">
                       <button
                         onClick={() => toggleStatus(dish.id, dish.status)}
-                        className={`flex-1 rounded-lg border py-2 text-xs font-medium ${
+                        disabled={updatingDishId !== null}
+                        className={`flex-1 rounded-lg border py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
                           dish.status
                             ? "border-[#ffd1d1] text-[#ef5350]"
                             : "border-[#bcebd5] text-[#15966a]"
                         }`}
                       >
-                        {dish.status ? "Disable" : "Enable"}
+                        {updatingDishId === dish.id
+                          ? "Updating..."
+                          : dish.status
+                            ? "Disable"
+                            : "Enable"}
                       </button>
 
                       <button
                         onClick={() => deleteDish(dish.id)}
-                        className="rounded-lg border border-[#ffd1d1] px-4 py-2 text-xs text-[#ff5d5d]"
+                        disabled={updatingDishId !== null}
+                        className="rounded-lg border border-[#ffd1d1] px-4 py-2 text-xs text-[#ff5d5d] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Delete
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
 
                 {filteredDishes.length === 0 && (
