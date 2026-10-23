@@ -1,8 +1,13 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+
+import { auth } from "../config/Firebase";
+import { getAdminProfile } from "../services/userService";
 
 import {
   addOrder as addOrderToFirebase,
   subscribeToOrders,
+  subscribeToUserOrders,
   updateOrderStatus as updateOrderStatusInFirebase,
   markOrderAsCollected as markOrderAsCollectedInFirebase,
   deleteOrder as deleteOrderFromFirebase,
@@ -15,78 +20,111 @@ export const OrderProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Listen to orders in real time
   useEffect(() => {
-    setLoading(true);
-    setError("");
+    let unsubscribeOrders = null;
+    let active = true;
+    let authCheckId = 0;
 
-    const unsubscribe = subscribeToOrders(
-      (firebaseOrders) => {
-        setOrders(firebaseOrders);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      const currentCheckId = ++authCheckId;
+
+      unsubscribeOrders?.();
+      unsubscribeOrders = null;
+
+      setOrders([]);
+      setError("");
+
+      if (!user) {
         setLoading(false);
-      },
-      (error) => {
-        console.error("Orders Listener Error:", error);
-        setError("Failed to load orders.");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const adminProfile = await getAdminProfile(user.uid);
+
+        if (!active || currentCheckId !== authCheckId) return;
+
+        const handleOrders = (firebaseOrders) => {
+          if (!active || currentCheckId !== authCheckId) return;
+
+          setOrders(firebaseOrders);
+          setLoading(false);
+          setError("");
+        };
+
+        const handleError = (listenerError) => {
+          if (!active || currentCheckId !== authCheckId) return;
+
+          console.error("Orders Listener Error:", listenerError);
+          setError("Failed to load orders.");
+          setLoading(false);
+        };
+
+        if (adminProfile?.role === "admin") {
+          unsubscribeOrders = subscribeToOrders(handleOrders, handleError);
+        } else {
+          unsubscribeOrders = subscribeToUserOrders(
+            user.uid,
+            handleOrders,
+            handleError,
+          );
+        }
+      } catch (listenerError) {
+        if (!active || currentCheckId !== authCheckId) return;
+
+        console.error("Order access verification failed:", listenerError);
+        setError("Unable to verify account access for orders.");
         setLoading(false);
-      },
-    );
+      }
+    });
 
     return () => {
-      unsubscribe();
+      active = false;
+      unsubscribeAuth();
+      unsubscribeOrders?.();
     };
   }, []);
 
-  // Add order
   const addOrder = async (newOrder) => {
     try {
-      const createdOrder = await addOrderToFirebase(newOrder);
-
-      return createdOrder;
+      return await addOrderToFirebase(newOrder);
     } catch (error) {
       console.error("Add Order Error:", error);
-
       throw error;
     }
   };
 
-  // Update order status
   const updateOrderStatus = async (id, status) => {
     try {
       await updateOrderStatusInFirebase(id, status);
     } catch (error) {
       console.error("Update Order Status Error:", error);
-
       throw error;
     }
   };
 
-  // Mark order as collected
   const markOrderAsCollected = async (id) => {
     try {
       await markOrderAsCollectedInFirebase(id);
     } catch (error) {
       console.error("Mark Order As Collected Error:", error);
-
       throw error;
     }
   };
 
-  // Delete order
   const deleteOrder = async (id) => {
     try {
       await deleteOrderFromFirebase(id);
     } catch (error) {
       console.error("Delete Order Error:", error);
-
       throw error;
     }
   };
 
-  // Manually reload orders if needed
   const loadOrders = async () => {
-    // Real-time listener already keeps orders updated.
-    // This function is kept for compatibility with existing screens.
+    // The real-time listener updates orders automatically.
   };
 
   return (

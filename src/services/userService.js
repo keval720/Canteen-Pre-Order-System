@@ -119,6 +119,7 @@ export const createUserProfile = async (userId, userData) => {
     role: userData.role,
     phone: userData.phone || "",
     favourites: [],
+    cart: [],
   };
 
   await setDoc(userRef, profileData, {

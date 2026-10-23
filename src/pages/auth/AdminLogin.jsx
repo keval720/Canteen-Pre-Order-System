@@ -29,15 +29,14 @@ const AdminLogin = () => {
 
       const adminProfile = await getAdminProfile(loggedInUser.uid);
 
-      if (!adminProfile) {
+      if (!adminProfile || adminProfile.role !== "admin") {
         await logoutUser();
 
         setError("This account is not authorized to access the admin panel.");
 
         return;
       }
-      console.log("login success");
-      
+
       navigate("/admin/dashboard");
     } catch (error) {
       console.error("Admin Login Error:", error);

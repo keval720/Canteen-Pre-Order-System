@@ -7,8 +7,10 @@ import {
   doc,
   onSnapshot,
 } from "firebase/firestore";
-
+import { auth } from "../config/Firebase";
+import { getAdminProfile } from "./userService";
 import { db } from "../config/Firebase";
+import { query, where } from "firebase/firestore";
 
 const orderCollection = collection(db, "orders");
 
@@ -59,8 +61,69 @@ export const deleteOrder = async (id) => {
 };
 
 export const subscribeToOrders = (onOrdersChange, onError) => {
-  return onSnapshot(
+  const verifyAndSubscribe = async () => {
+    try {
+      const user = auth.currentUser;
+
+      console.log("Authenticated UID:", user?.uid);
+
+      if (!user) {
+        throw new Error("No authenticated Firebase user.");
+      }
+
+      const adminProfile = await getAdminProfile(user.uid);
+
+      console.log("Authenticated UID:", user.uid);
+      console.log("Admin document ID expected:", user.uid);
+      console.log("Admin profile returned:", adminProfile);
+      console.log("Admin role returned:", adminProfile?.role);
+
+      return onSnapshot(
+        orderCollection,
+        (snapshot) => {
+          onOrdersChange(
+            snapshot.docs.map((document) => ({
+              id: document.id,
+              ...document.data(),
+            })),
+          );
+        },
+        (error) => {
+          console.error("Orders Snapshot Error:", error);
+          onError?.(error);
+        },
+      );
+    } catch (error) {
+      console.error("Admin verification failed:", error);
+      onError?.(error);
+    }
+  };
+
+  let unsubscribe = null;
+  let cancelled = false;
+
+  verifyAndSubscribe().then((listener) => {
+    if (cancelled) {
+      listener?.();
+    } else {
+      unsubscribe = listener;
+    }
+  });
+
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
+};
+
+export const subscribeToUserOrders = (userId, onOrdersChange, onError) => {
+  const userOrdersQuery = query(
     orderCollection,
+    where("userId", "==", userId),
+  );
+
+  return onSnapshot(
+    userOrdersQuery,
     (snapshot) => {
       const orders = snapshot.docs.map((document) => ({
         id: document.id,
@@ -70,11 +133,8 @@ export const subscribeToOrders = (onOrdersChange, onError) => {
       onOrdersChange(orders);
     },
     (error) => {
-      console.error("Orders Snapshot Error:", error);
-
-      if (onError) {
-        onError(error);
-      }
+      console.error("User Orders Snapshot Error:", error);
+      onError?.(error);
     },
   );
 };

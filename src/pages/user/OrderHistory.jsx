@@ -32,9 +32,23 @@ const OrderHistory = () => {
       return [];
     }
 
+    const statusPriority = {
+      "Waiting for Pickup": 1,
+      Preparing: 2,
+      Pending: 3,
+      Delivered: 4,
+    };
+
     return [...orders]
       .filter((order) => order.userId === user.uid)
       .sort((a, b) => {
+        const priorityA = statusPriority[a.status] ?? 999;
+        const priorityB = statusPriority[b.status] ?? 999;
+
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+
         const timeA = a.createdAt?.toMillis
           ? a.createdAt.toMillis()
           : new Date(a.createdAt || 0).getTime();

@@ -82,12 +82,29 @@ const OrderSuccess = () => {
         </div>
 
         {/* Heading */}
+
         <h1 className="mt-5 text-center text-[25px] font-bold text-[#171717]">
-          Order Confirmed!
+          {order.status === "Pending"
+            ? "Order Placed Successfully!"
+            : order.status === "Preparing"
+              ? "Order Accepted!"
+              : order.status === "Waiting for Pickup"
+                ? "Your Order Is Ready!"
+                : order.status === "Delivered"
+                  ? "Order Collected!"
+                  : "Order Details"}
         </h1>
 
         <p className="mt-2 text-center text-[12px] text-[#8e8179]">
-          Your order details and pickup information are shown below.
+          {order.status === "Pending"
+            ? "Your payment is complete. Waiting for the canteen admin to accept your order."
+            : order.status === "Preparing"
+              ? "The canteen has accepted your order and is preparing your food."
+              : order.status === "Waiting for Pickup"
+                ? "Your food is ready! Show your pickup code at the canteen counter."
+                : order.status === "Delivered"
+                  ? "Your order has been collected. Thank you!"
+                  : "Your order details are shown below."}
         </p>
 
         {/* Pickup Code Card */}
