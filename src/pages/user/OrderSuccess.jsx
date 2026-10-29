@@ -82,7 +82,6 @@ const OrderSuccess = () => {
         </div>
 
         {/* Heading */}
-
         <h1 className="mt-5 text-center text-[25px] font-bold text-[#171717]">
           {order.status === "Pending"
             ? "Order Placed Successfully!"
@@ -134,14 +133,37 @@ const OrderSuccess = () => {
         <div className="mt-4 w-full rounded-[16px] border border-[#e4dcd4] bg-white p-5">
           <h2 className="text-[15px] font-bold text-[#171717]">Items</h2>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 space-y-3">
             {order.items?.map((item, index) => (
-              <span
+              <div
                 key={`${item.id || item.name}-${index}`}
-                className="rounded-full bg-[#f0eae2] px-3 py-1.5 text-[10px] text-[#806b60]"
+                className="rounded-xl bg-[#f0eae2] p-3"
               >
-                {item.name} ×{item.quantity}
-              </span>
+                {/* Item Name and Quantity */}
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-medium text-[#806b60]">
+                    {item.name}
+                  </p>
+
+                  <span className="shrink-0 text-[11px] font-semibold text-[#806b60]">
+                    ×{item.quantity}
+                  </span>
+                </div>
+
+                {/* Special Instructions */}
+                {item.specialInstructions?.trim() && (
+                  <div className="mt-3 rounded-lg border border-[#f0cfc2] bg-[#fff7f3] p-3">
+                    <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-[#D15D2C]">
+                      <span aria-hidden="true">✎</span>
+                      Special Instructions
+                    </p>
+
+                    <p className="mt-1 break-words text-[11px] leading-[1.6] text-[#594c45]">
+                      {item.specialInstructions}
+                    </p>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>

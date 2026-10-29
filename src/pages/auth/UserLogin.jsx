@@ -26,13 +26,17 @@ const UserLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    if (loading) return;
+
     setError("");
 
     try {
       setLoading(true);
 
-      // Firebase login
+      // Firebase Authentication
+      console.log("Signing in...");
       const user = await loginUser(email.trim(), password);
+      console.log("Authentication successful. UID:", user.uid);
 
       // Check email verification
       if (!user.emailVerified) {
@@ -46,10 +50,11 @@ const UserLogin = () => {
       }
 
       // Check existing Firestore profile
+      console.log("Checking users profile...");
       const existingProfile = await getUserProfile(user.uid);
+      console.log("Existing profile:", existingProfile);
 
       if (existingProfile) {
-        // Validate selected role
         if (existingProfile.role !== role) {
           await logoutUser();
 
@@ -62,13 +67,15 @@ const UserLogin = () => {
           return;
         }
 
-        // Role matches
+        console.log("Existing profile verified. Navigating home.");
         navigate("/user/home");
         return;
       }
 
-      // Get temporary registration data
+      // Check pending registration
+      console.log("Checking pending registration...");
       const pendingRegistration = await getPendingRegistration(user.uid);
+      console.log("Pending registration:", pendingRegistration);
 
       if (!pendingRegistration) {
         await logoutUser();
@@ -93,21 +100,29 @@ const UserLogin = () => {
         return;
       }
 
-      // Create real Firestore profile
+      // Create Firestore user profile
+      console.log("Creating user profile...");
+
       await createUserProfile(user.uid, {
         name: pendingRegistration.name || user.displayName || "",
         email: user.email,
         role: pendingRegistration.role,
       });
 
+      console.log("User profile created successfully.");
+
       // Delete temporary registration
+      console.log("Deleting pending registration...");
       await deletePendingRegistration(user.uid);
+      console.log("Pending registration deleted successfully.");
 
       // Login successful
       navigate("/user/home");
     } catch (error) {
-      console.error("Login Error:", error);
+      console.error("Login Error:", error.code, error.message, error);
 
+      // Log out only if authentication succeeded but a later step failed.
+      // Firebase Auth errors are handled separately below.
       if (error.code === "auth/invalid-credential") {
         setError("Invalid email or password.");
       } else if (error.code === "auth/user-not-found") {
@@ -116,6 +131,12 @@ const UserLogin = () => {
         setError("Incorrect password.");
       } else if (error.code === "auth/invalid-email") {
         setError("Please enter a valid email address.");
+      } else if (error.code === "auth/too-many-requests") {
+        setError("Too many attempts. Please try again later.");
+      } else if (error.code === "permission-denied") {
+        setError(
+          "Access to your account data was denied. Please contact the administrator.",
+        );
       } else {
         setError("Login failed. Please try again.");
       }
@@ -131,9 +152,8 @@ const UserLogin = () => {
   return (
     <>
       <div className="min-h-screen flex bg-[#f9f6f1]">
-        {/* ================= LEFT SECTION ================= */}
+        {/* LEFT SECTION */}
         <div className="hidden lg:flex lg:w-[35%] bg-[#d15d2c] text-white p-9 flex-col justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center">
               <img src={logo} alt="logo" />
@@ -142,7 +162,6 @@ const UserLogin = () => {
             <h1 className="text-2xl font-bold">Smart Canteen</h1>
           </div>
 
-          {/* Main Text */}
           <div>
             <h2 className="text-4xl xl:text-5xl font-bold leading-tight">
               Give a Pre-Order and
@@ -158,11 +177,9 @@ const UserLogin = () => {
             </p>
           </div>
 
-          {/* Features */}
           <div className="space-y-3">
             <div className="bg-[#df7045] rounded-xl p-4">
               <p className="font-semibold">⚡ Quick Ordering</p>
-
               <p className="text-xs text-orange-100 mt-1">
                 Add items & checkout in under 2 minutes
               </p>
@@ -170,7 +187,6 @@ const UserLogin = () => {
 
             <div className="bg-[#df7045] rounded-xl p-4">
               <p className="font-semibold">🕐 Choose Your Time</p>
-
               <p className="text-xs text-orange-100 mt-1">
                 Pick a future pickup slot that fits your schedule
               </p>
@@ -178,7 +194,6 @@ const UserLogin = () => {
 
             <div className="bg-[#df7045] rounded-xl p-4">
               <p className="font-semibold">🍱 Fresh & Hot</p>
-
               <p className="text-xs text-orange-100 mt-1">
                 Food prepared fresh at your pickup time
               </p>
@@ -186,10 +201,9 @@ const UserLogin = () => {
           </div>
         </div>
 
-        {/* ================= RIGHT SECTION ================= */}
+        {/* RIGHT SECTION */}
         <div className="flex-1 flex items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-md">
-            {/* Back */}
             <button
               onClick={() => navigate("/")}
               className="text-sm text-gray-500 hover:text-[#d15d2c] mb-8"
@@ -197,7 +211,6 @@ const UserLogin = () => {
               ← Back
             </button>
 
-            {/* Heading */}
             <h2 className="text-3xl sm:text-4xl font-semibold text-gray-900">
               Welcome back 👋
             </h2>
@@ -207,26 +220,26 @@ const UserLogin = () => {
             </p>
 
             <form onSubmit={handleLogin}>
-              {/* Role */}
+              {/* ROLE */}
               <div className="mt-8">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Select your role
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Student */}
                   <label
-                    className={`flex items-center py-3 px-5 rounded-xl border-2 cursor-pointer transition
-        ${
-          role === "student"
-            ? "border-[#d15d2c] bg-[#fff7f2]"
-            : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
+                    className={`flex items-center py-3 px-5 rounded-xl border-2 cursor-pointer transition ${
+                      role === "student"
+                        ? "border-[#d15d2c] bg-[#fff7f2]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
                   >
-                    {/* Custom Radio */}
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3
-          ${role === "student" ? "border-[#d15d2c]" : "border-gray-300"}`}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                        role === "student"
+                          ? "border-[#d15d2c]"
+                          : "border-gray-300"
+                      }`}
                     >
                       {role === "student" && (
                         <div className="w-2.5 h-2.5 rounded-full bg-[#d15d2c]" />
@@ -243,25 +256,24 @@ const UserLogin = () => {
                     />
 
                     <span className="text-2xl">🎓</span>
-
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">Student</h3>
                     </div>
                   </label>
 
-                  {/* Faculty */}
                   <label
-                    className={`flex items-center py-3 px-5 rounded-xl border-2 cursor-pointer transition
-        ${
-          role === "faculty"
-            ? "border-[#d15d2c] bg-[#fff7f2]"
-            : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
+                    className={`flex items-center py-3 px-5 rounded-xl border-2 cursor-pointer transition ${
+                      role === "faculty"
+                        ? "border-[#d15d2c] bg-[#fff7f2]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
                   >
-                    {/* Custom Radio */}
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3
-          ${role === "faculty" ? "border-[#d15d2c]" : "border-gray-300"}`}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                        role === "faculty"
+                          ? "border-[#d15d2c]"
+                          : "border-gray-300"
+                      }`}
                     >
                       {role === "faculty" && (
                         <div className="w-2.5 h-2.5 rounded-full bg-[#d15d2c]" />
@@ -278,7 +290,6 @@ const UserLogin = () => {
                     />
 
                     <span className="text-2xl">👨‍🏫</span>
-
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">Faculty</h3>
                     </div>
@@ -286,7 +297,7 @@ const UserLogin = () => {
                 </div>
               </div>
 
-              {/* Email */}
+              {/* EMAIL */}
               <div className="mt-5">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -305,7 +316,7 @@ const UserLogin = () => {
                 />
               </div>
 
-              {/* Password */}
+              {/* PASSWORD */}
               <div className="mt-5">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Password
@@ -334,7 +345,7 @@ const UserLogin = () => {
                 </div>
               </div>
 
-              {/* Forgot Password */}
+              {/* FORGOT PASSWORD */}
               <div className="flex justify-end mt-3">
                 <button
                   type="button"
@@ -345,14 +356,14 @@ const UserLogin = () => {
                 </button>
               </div>
 
-              {/* Error */}
+              {/* ERROR */}
               {error && (
                 <div className="mt-5 rounded-xl border border-red-200 bg-red-100 px-4 py-3 text-sm text-red-800">
                   {error}
                 </div>
               )}
 
-              {/* Login */}
+              {/* LOGIN */}
               <button
                 type="submit"
                 disabled={loading}
@@ -364,7 +375,7 @@ const UserLogin = () => {
               </button>
             </form>
 
-            {/* Register */}
+            {/* REGISTER */}
             <p className="text-center text-sm text-gray-500 mt-7">
               New here?{" "}
               <button

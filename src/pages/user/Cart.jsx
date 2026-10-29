@@ -13,6 +13,7 @@ const Cart = () => {
     increaseQuantity,
     decreaseQuantity,
     removeFromCart,
+    updateItemInstructions,
     totalItems,
     itemTotal,
     gst,
@@ -196,6 +197,31 @@ const Cart = () => {
                       ₹{itemTotalPrice}
                     </p>
                   </div>
+                </div>
+
+                {/* Special Instructions */}
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#e2d6cc] bg-[#faf7f3] px-3 py-3">
+                  <span className="text-xl text-[#8b817a]" aria-hidden="true">
+                    ✎
+                  </span>
+
+                  <input
+                    type="text"
+                    value={item.specialInstructions || ""}
+                    onChange={(event) =>
+                      updateItemInstructions(item.id, event.target.value).catch(
+                        (error) =>
+                          console.error(
+                            "Update Special Instructions Error:",
+                            error,
+                          ),
+                      )
+                    }
+                    placeholder="Add special instructions (e.g., less spicy, no onions, extra chutney...)"
+                    maxLength={250}
+                    aria-label={`Special instructions for ${item.name}`}
+                    className="w-full min-w-0 bg-transparent text-sm text-[#292421] outline-none placeholder:text-[#9c938c]"
+                  />
                 </div>
               </motion.div>
             );

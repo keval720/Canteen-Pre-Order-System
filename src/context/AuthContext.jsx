@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 import { subscribeToAuthChanges } from "../services/authService";
-import { getUserProfile } from "../services/userService";
+import { subscribeToUserProfile } from "../services/userService";
 
 const AuthContext = createContext(null);
 
@@ -11,35 +11,53 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
+    let unsubscribeProfile = null;
+    let authChangeVersion = 0;
+
+    const unsubscribeAuth = subscribeToAuthChanges((currentUser) => {
+      const currentVersion = ++authChangeVersion;
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
       setUser(currentUser);
 
-      if (!currentUser) {
+      if (!currentUser || !currentUser.emailVerified) {
         setProfile(null);
         setLoading(false);
         return;
       }
 
-      if (!currentUser.emailVerified) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
 
-      try {
-        const userProfile = await getUserProfile(currentUser.uid);
+      unsubscribeProfile = subscribeToUserProfile(
+        currentUser.uid,
+        (userProfile) => {
+          if (currentVersion !== authChangeVersion) return;
 
-        setProfile(userProfile);
-      } catch (error) {
-        console.error("Load User Profile Error:", error);
+          setProfile(userProfile);
+          setLoading(false);
+        },
+        (error) => {
+          if (currentVersion !== authChangeVersion) return;
 
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
+          console.error("Load User Profile Error:", error);
+          setProfile(null);
+          setLoading(false);
+        },
+      );
     });
 
-    return unsubscribe;
+    return () => {
+      authChangeVersion++;
+      unsubscribeAuth();
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+    };
   }, []);
 
   return (

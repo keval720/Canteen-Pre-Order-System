@@ -109,6 +109,7 @@ const Payment = () => {
       quantity: Number(item.quantity || 0),
       preparationTime: Number(item.preparationTime || 0),
       batchable: item.batchable === true,
+      specialInstructions: item.specialInstructions || "",
     }));
 
     const pickupCode = generatePickupCode();

@@ -118,6 +118,7 @@ export const CartProvider = ({ children }) => {
           quantity: 1,
           preparationTime: Number(item.preparationTime || 0),
           batchable: item.batchable === true,
+          specialInstructions: "",
         },
       ];
     }
@@ -201,6 +202,7 @@ export const CartProvider = ({ children }) => {
           ),
           batchable:
             orderItem.batchable === true || menuItem?.batchable === true,
+          specialInstructions: orderItem.specialInstructions || "",
         });
       }
     });
@@ -276,6 +278,27 @@ export const CartProvider = ({ children }) => {
   };
 
   // ==========================================
+  // UPDATE SPECIAL INSTRUCTIONS
+  // ==========================================
+
+  const updateItemInstructions = async (itemId, instructions) => {
+    if (!user) {
+      throw new Error("Please login to manage your cart.");
+    }
+
+    const updatedCart = cartItems.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            specialInstructions: instructions,
+          }
+        : item,
+    );
+
+    await saveCart(updatedCart);
+  };
+
+  // ==========================================
   // CLEAR CART
   // ==========================================
 
@@ -335,6 +358,7 @@ export const CartProvider = ({ children }) => {
         increaseQuantity,
         decreaseQuantity,
         removeFromCart,
+        updateItemInstructions,
         clearCart,
 
         totalItems,
@@ -348,6 +372,10 @@ export const CartProvider = ({ children }) => {
     </CartContext.Provider>
   );
 };
+
+// ==========================================
+// CUSTOM CART HOOK
+// ==========================================
 
 export const useCart = () => {
   const context = useContext(CartContext);

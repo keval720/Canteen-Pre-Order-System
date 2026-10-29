@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+
 import { motion } from "motion/react";
 
 import AdminLayout from "../../components/admin/AdminLayout";
+
 import { useOrders } from "../../context/OrderContext";
 
 const ManageOrders = () => {
@@ -10,47 +12,68 @@ const ManageOrders = () => {
   const [activeFilter, setActiveFilter] = useState("All");
 
   // Pickup code verification
+
   const [pickupCode, setPickupCode] = useState("");
+
   const [pickupOrder, setPickupOrder] = useState(null);
+
   const [pickupError, setPickupError] = useState("");
+
   const [pickupMessage, setPickupMessage] = useState("");
+
   const [collecting, setCollecting] = useState(false);
+
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
   // Lost code verification
+
   const [showAlternativeVerification, setShowAlternativeVerification] =
     useState(false);
 
   const [paymentId, setPaymentId] = useState("");
+
   const [customerEmail, setCustomerEmail] = useState("");
 
   const [alternativeOrder, setAlternativeOrder] = useState(null);
+
   const [alternativeError, setAlternativeError] = useState("");
+
   const [alternativeMessage, setAlternativeMessage] = useState("");
+
   const [alternativeCollecting, setAlternativeCollecting] = useState(false);
 
   // Smart Kitchen Batching
+
   const [ignoredBatchSuggestions, setIgnoredBatchSuggestions] = useState([]);
 
   const filters = [
     {
       name: "All",
+
       status: "All",
     },
+
     {
       name: "Pending",
+
       status: "Pending",
     },
+
     {
       name: "Preparing",
+
       status: "Preparing",
     },
+
     {
       name: "Waiting for Pickup",
+
       status: "Waiting for Pickup",
     },
+
     {
       name: "Delivered",
+
       status: "Delivered",
     },
   ];
@@ -140,7 +163,9 @@ const ManageOrders = () => {
   };
 
   // -----------------------------
+
   // Smart Kitchen Batch Detection
+
   // -----------------------------
 
   const batchSuggestions = useMemo(() => {
@@ -182,6 +207,7 @@ const ManageOrders = () => {
             secondItem.batchable === true
           ) {
             const firstQuantity = Number(firstItem.quantity || 0);
+
             const secondQuantity = Number(secondItem.quantity || 0);
 
             const totalQuantity = firstQuantity + secondQuantity;
@@ -189,7 +215,9 @@ const ManageOrders = () => {
             if (totalQuantity > 0) {
               commonItems.push({
                 id: firstItem.id,
+
                 name: firstItem.name,
+
                 quantity: totalQuantity,
               });
             }
@@ -210,7 +238,9 @@ const ManageOrders = () => {
 
         suggestions.push({
           id: suggestionId,
+
           orders: [firstOrder, secondOrder],
+
           commonItems,
         });
       }
@@ -222,41 +252,53 @@ const ManageOrders = () => {
   const handleIgnoreBatchSuggestion = (suggestionId) => {
     setIgnoredBatchSuggestions((previousSuggestions) => [
       ...previousSuggestions,
+
       suggestionId,
     ]);
   };
 
   // -----------------------------
+
   // Pickup Code Verification
+
   // -----------------------------
 
   const handlePickupCodeChange = (event) => {
     const value = event.target.value
+
       .toUpperCase()
+
       .replace(/[^A-Z0-9]/g, "")
+
       .slice(0, 6);
 
     setPickupCode(value);
 
     setPickupOrder(null);
+
     setPickupError("");
+
     setPickupMessage("");
   };
 
   const handleVerifyPickupCode = () => {
     setPickupError("");
+
     setPickupMessage("");
+
     setPickupOrder(null);
 
     const enteredCode = pickupCode.trim().toUpperCase();
 
     if (!enteredCode) {
       setPickupError("Please enter the pickup code.");
+
       return;
     }
 
     if (enteredCode.length !== 6) {
       setPickupError("Pickup code must contain 6 characters.");
+
       return;
     }
 
@@ -266,21 +308,25 @@ const ManageOrders = () => {
 
     if (!matchedOrder) {
       setPickupError("Invalid pickup code. No matching order found.");
+
       return;
     }
 
     if (matchedOrder.paymentStatus !== "paid") {
       setPickupError("This order does not have a successful payment.");
+
       return;
     }
 
     if (matchedOrder.pickupStatus === "collected") {
       setPickupError("This order has already been collected.");
+
       return;
     }
 
     if (matchedOrder.status !== "Waiting for Pickup") {
       setPickupError("This order is not ready for pickup yet.");
+
       return;
     }
 
@@ -288,7 +334,9 @@ const ManageOrders = () => {
   };
 
   // -----------------------------
+
   // Mark Normal Pickup Collected
+
   // -----------------------------
 
   const handleMarkAsCollected = async () => {
@@ -298,7 +346,9 @@ const ManageOrders = () => {
 
     try {
       setCollecting(true);
+
       setPickupError("");
+
       setPickupMessage("");
 
       await markOrderAsCollected(pickupOrder.id);
@@ -318,24 +368,31 @@ const ManageOrders = () => {
   };
 
   // -----------------------------
+
   // Alternative Verification
+
   // -----------------------------
 
   const handleAlternativeVerification = () => {
     setAlternativeError("");
+
     setAlternativeMessage("");
+
     setAlternativeOrder(null);
 
     const enteredPaymentId = paymentId.trim();
+
     const enteredEmail = customerEmail.trim().toLowerCase();
 
     if (!enteredPaymentId) {
       setAlternativeError("Please enter the payment ID.");
+
       return;
     }
 
     if (!enteredEmail) {
       setAlternativeError("Please enter the customer's email.");
+
       return;
     }
 
@@ -349,21 +406,25 @@ const ManageOrders = () => {
       setAlternativeError(
         "No matching paid order found. Please check the payment ID and email.",
       );
+
       return;
     }
 
     if (matchedOrder.paymentStatus !== "paid") {
       setAlternativeError("This order does not have a successful payment.");
+
       return;
     }
 
     if (matchedOrder.pickupStatus === "collected") {
       setAlternativeError("This order has already been collected.");
+
       return;
     }
 
     if (matchedOrder.status !== "Waiting for Pickup") {
       setAlternativeError("This order is not ready for pickup yet.");
+
       return;
     }
 
@@ -371,7 +432,9 @@ const ManageOrders = () => {
   };
 
   // -----------------------------
+
   // Alternative Collection
+
   // -----------------------------
 
   const handleAlternativeCollection = async () => {
@@ -381,20 +444,25 @@ const ManageOrders = () => {
 
     try {
       setAlternativeCollecting(true);
+
       setAlternativeError("");
+
       setAlternativeMessage("");
 
       await markOrderAsCollected(alternativeOrder.id);
 
       setAlternativeOrder((previousOrder) => ({
         ...previousOrder,
+
         status: "Delivered",
+
         pickupStatus: "collected",
       }));
 
       setAlternativeMessage("Order successfully verified and collected.");
 
       setPaymentId("");
+
       setCustomerEmail("");
     } catch (error) {
       console.error("Alternative Collection Error:", error);
@@ -406,14 +474,19 @@ const ManageOrders = () => {
   };
 
   // -----------------------------
+
   // Filtered Orders
+
   // -----------------------------
 
   const filteredOrders = useMemo(() => {
     const statusPriority = {
       Pending: 1,
+
       Preparing: 2,
+
       "Waiting for Pickup": 3,
+
       Delivered: 4,
     };
 
@@ -433,6 +506,7 @@ const ManageOrders = () => {
       <>
         <div className="min-h-screen bg-[#f9f6f1] px-4 py-5 sm:px-6 lg:px-8">
           {/* Page Header */}
+
           <div>
             <h1 className="text-2xl font-semibold text-[#171717]">
               Order Management
@@ -444,6 +518,7 @@ const ManageOrders = () => {
           </div>
 
           {/* Pickup Verification */}
+
           <div className="mt-5 rounded-2xl border border-[#e8dbd0] bg-white p-4 sm:p-5">
             <div>
               <h2 className="text-base font-semibold text-[#171717]">
@@ -456,6 +531,7 @@ const ManageOrders = () => {
             </div>
 
             {/* Pickup Code */}
+
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
@@ -481,6 +557,7 @@ const ManageOrders = () => {
             </div>
 
             {/* Pickup Error */}
+
             {pickupError && (
               <div className="mt-4 rounded-xl border border-[#f0b9ad] bg-[#fff3f0] px-4 py-3">
                 <p className="text-xs font-medium text-[#d94f3d]">
@@ -490,6 +567,7 @@ const ManageOrders = () => {
             )}
 
             {/* Pickup Message */}
+
             {pickupMessage && (
               <div className="mt-4 rounded-xl border border-[#9be7c8] bg-[#effcf6] px-4 py-3">
                 <p className="text-xs font-medium text-[#15966a]">
@@ -499,6 +577,7 @@ const ManageOrders = () => {
             )}
 
             {/* Matched Pickup Order */}
+
             {pickupOrder && (
               <div className="mt-4 rounded-xl border border-[#e8dbd0] bg-[#fffaf6] p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -562,14 +641,24 @@ const ManageOrders = () => {
                     Items
                   </p>
 
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 space-y-2">
                     {pickupOrder.items?.map((item, index) => (
-                      <span
+                      <div
                         key={`${item.id || item.name}-${index}`}
-                        className="rounded-full bg-[#f1e8df] px-3 py-1.5 text-xs text-[#725f53]"
+                        className="rounded-xl bg-[#f1e8df] px-3 py-2.5"
                       >
-                        {item.name} ×{item.quantity}
-                      </span>
+                        <p className="text-xs font-medium text-[#725f53]">
+                          {item.name} ×{item.quantity}
+                        </p>
+                        {item.specialInstructions?.trim() && (
+                          <p className="mt-1 text-xs text-[#8c4b2b]">
+                            <span className="font-semibold">
+                              Special instructions:
+                            </span>{" "}
+                            {item.specialInstructions}
+                          </p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -592,6 +681,7 @@ const ManageOrders = () => {
             )}
 
             {/* Lost Code */}
+
             <div className="mt-5 border-t border-[#eadfd6] pt-5">
               <button
                 type="button"
@@ -599,7 +689,9 @@ const ManageOrders = () => {
                   setShowAlternativeVerification((previous) => !previous);
 
                   setAlternativeError("");
+
                   setAlternativeMessage("");
+
                   setAlternativeOrder(null);
                 }}
                 className="text-xs font-semibold text-[#d15d2c] hover:underline"
@@ -611,6 +703,7 @@ const ManageOrders = () => {
             </div>
 
             {/* Alternative Verification */}
+
             {showAlternativeVerification && (
               <div className="mt-4 rounded-xl border border-[#e8dbd0] bg-[#fffaf6] p-4">
                 <h3 className="text-sm font-semibold text-[#171717]">
@@ -623,6 +716,7 @@ const ManageOrders = () => {
                 </p>
 
                 {/* Payment ID */}
+
                 <div className="mt-4">
                   <label className="text-xs font-medium text-[#594c45]">
                     Payment ID
@@ -638,6 +732,7 @@ const ManageOrders = () => {
                 </div>
 
                 {/* Email */}
+
                 <div className="mt-3">
                   <label className="text-xs font-medium text-[#594c45]">
                     Customer Email
@@ -661,6 +756,7 @@ const ManageOrders = () => {
                 </button>
 
                 {/* Alternative Error */}
+
                 {alternativeError && (
                   <div className="mt-4 rounded-xl border border-[#f0b9ad] bg-[#fff3f0] px-4 py-3">
                     <p className="text-xs font-medium text-[#d94f3d]">
@@ -670,6 +766,7 @@ const ManageOrders = () => {
                 )}
 
                 {/* Alternative Success */}
+
                 {alternativeMessage && (
                   <div className="mt-4 rounded-xl border border-[#9be7c8] bg-[#effcf6] px-4 py-3">
                     <p className="text-xs font-medium text-[#15966a]">
@@ -679,6 +776,7 @@ const ManageOrders = () => {
                 )}
 
                 {/* Alternative Order */}
+
                 {alternativeOrder && (
                   <div className="mt-4 rounded-xl border border-[#e8dbd0] bg-white p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -734,14 +832,24 @@ const ManageOrders = () => {
                         Items
                       </p>
 
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-2 space-y-2">
                         {alternativeOrder.items?.map((item, index) => (
-                          <span
+                          <div
                             key={`${item.id || item.name}-${index}`}
-                            className="rounded-full bg-[#f1e8df] px-3 py-1.5 text-xs text-[#725f53]"
+                            className="rounded-xl bg-[#f1e8df] px-3 py-2.5"
                           >
-                            {item.name} ×{item.quantity}
-                          </span>
+                            <p className="text-xs font-medium text-[#725f53]">
+                              {item.name} ×{item.quantity}
+                            </p>
+                            {item.specialInstructions?.trim() && (
+                              <p className="mt-1 text-xs text-[#8c4b2b]">
+                                <span className="font-semibold">
+                                  Special instructions:
+                                </span>{" "}
+                                {item.specialInstructions}
+                              </p>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -767,6 +875,7 @@ const ManageOrders = () => {
           </div>
 
           {/* Smart Kitchen Batch Suggestions */}
+
           {batchSuggestions.length > 0 && (
             <div className="mt-5 rounded-2xl border border-[#e8dbd0] bg-white p-4 sm:p-5">
               <div>
@@ -796,7 +905,9 @@ const ManageOrders = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{
                       duration: 0.45,
+
                       delay: index * 0.07,
+
                       ease: "easeOut",
                     }}
                     className="rounded-xl border border-[#eadfd6] bg-[#fffaf6] p-4"
@@ -859,6 +970,7 @@ const ManageOrders = () => {
           )}
 
           {/* Filters */}
+
           <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
             {filters.map((filter) => (
               <button
@@ -888,6 +1000,7 @@ const ManageOrders = () => {
           </div>
 
           {/* Orders */}
+
           <div className="mt-5 space-y-3">
             {filteredOrders.map((order, index) => (
               <motion.div
@@ -896,7 +1009,9 @@ const ManageOrders = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
                   duration: 0.45,
+
                   delay: index * 0.07,
+
                   ease: "easeOut",
                 }}
                 className="rounded-2xl border border-[#e8dbd0] bg-white px-4 py-4 sm:px-5"
@@ -925,22 +1040,38 @@ const ManageOrders = () => {
 
                     <p className="mt-2 text-xs text-[#a17d6c]">
                       {order.customer || "Unknown"}
+
                       {" · "}
+
                       {order.date || "-"}
+
                       {" · Placed "}
+
                       {order.placedTime || "-"}
+
                       {" · Pickup "}
+
                       {order.pickupTime || "-"}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 space-y-2">
                       {order.items?.map((item, index) => (
-                        <span
+                        <div
                           key={`${item.id || item.name}-${index}`}
-                          className="rounded-full bg-[#f1e8df] px-3 py-1.5 text-xs text-[#725f53]"
+                          className="rounded-xl bg-[#f1e8df] px-3 py-2.5"
                         >
-                          {item.name} ×{item.quantity}
-                        </span>
+                          <p className="text-xs font-medium text-[#725f53]">
+                            {item.name} ×{item.quantity}
+                          </p>
+                          {item.specialInstructions?.trim() && (
+                            <p className="mt-1 text-xs text-[#8c4b2b]">
+                              <span className="font-semibold">
+                                Special instructions:
+                              </span>{" "}
+                              {item.specialInstructions}
+                            </p>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
